@@ -5,26 +5,31 @@ from PyQt5.QtWidgets import (
     QPushButton
 )
 from PyQt5.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QIcon
-from markup_parser import *
-from tag_manager import *
+from modules.markup_parser import *
+from modules.tag_manager import *
 from patterns import MARKUP_PATTERN, MARKUP_TEMPLATE
 
 class SourceAnalyzer(QWidget):
-    def __init__ (self, controller):
+    def __init__ (self, module_manager, controller):
         super().__init__()
+        self.module_manager = module_manager
+        self.controller = controller
+        self.name = "Quellanalyse"
+        self.icon_path = "source_analyzer.png"
+        self.module_manager.register_module(self)
 
-        self.project = controller.get_project()
+        self.project = self.controller.get_project()
         print("self.project in SourceAnalyzer: ", self.project)
         self.db_manager = controller.get_db_manager()
+        print("self.db_manager in SourceAnalyzer: ", self.db_manager)
 
         self.text_area = CustomTextEdit(self)
-
-        self.setup_ui()
+        print("self.text_area in SourceAnalyzer: ", self.text_area)
         self.current_source_id = 1
         self.tag_manager = TagManager(self.text_area.toPlainText(), self.project)
+        print("self.tag_manager in SourceAnalyzer: ", self.tag_manager)
         self.highlighter = DiscourseHighlighter(self.text_area.document())
-        
-
+        print("self.highlighter in SourceAnalyzer: ", self.highlighter)
         
     def setup_ui(self):
         splitter = QSplitter(Qt.Horizontal, self)
@@ -38,6 +43,8 @@ class SourceAnalyzer(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(splitter)
         self.setLayout(layout)
+
+        return self
 
     def load_text(self, raw_text):
         parser = MarkupParser(raw_text)
@@ -168,18 +175,17 @@ class SourceSidebar(QWidget):
 
         self.setLayout(self.layout)
 
-        self.load_sources_from_dir()
-
+        self.load_sources_from_db()
         self.source_list.itemClicked.connect(self.load_source_from_file)
 
-    def load_sources_from_dir(self):
+    def load_sources_from_db(self):
         self.source_list.clear()
-        print("Source Dir in Load Sources: ", self.project.source_dir)
-        source_dir = self.project.source_dir
+        sources = self.db_manager.get_all_sources()
 
-        for file_name in os.listdir(source_dir):
-            if file_name.endswith(".md"):
-                self.source_list.addItem(file_name.replace(".md", ""))
+        for source in sources:
+            item = QListWidgetItem(source[1])
+            self.source_list.addItem(item)
+        self.source_list.setCurrentRow(0)
 
     def load_source_from_file(self, item):
         source_name = item.text()
@@ -223,7 +229,7 @@ class SourceSidebar(QWidget):
 
                 QMessageBox.information(self, "Quelle hinzufügen", f"Datei erfolgreich kopiert nach: \n{target_path}")
 
-                self.source_analyzer.source_sidebar.load_sources_from_dir()
+                self.source_analyzer.source_sidebar.load_sources_from_db()
 
             except Exception as e:
                 QMessageBox.critical(self, "Fehler", f"Fehler beim Kopieren: {str(e)}")

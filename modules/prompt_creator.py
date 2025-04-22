@@ -4,17 +4,23 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtCore import Qt
 from patterns import *
-from tag_manager import *
+from modules.tag_manager import *
 import os
 import re
 
 class PromptCreator(QWidget):
-    def __init__(self, controller):
+    def __init__(self, module_manager, controller):
         super().__init__()
+        self.module_manager = module_manager
+        print("module_manager in PromptCreator: ", self.module_manager)
         self.controller = controller
-        self.project = self.controller.get_project()
+        print("controller in PromptCreator: ", self.controller)
+        self.name = "Prompt Creator"
+        self.icon_path = "prompt_creator.png"
+        self.module_manager.register_module(self)
 
-        self. setup_ui()
+        self.project = self.controller.get_project()
+        print("self.project in PromptCreator: ", self.project)
 
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
@@ -39,6 +45,8 @@ class PromptCreator(QWidget):
         self.input_field.clear()
 
         self.tag_manager = TagManager(self.input_field.toPlainText(), self.project)
+
+        return self
 
     def add_prompt(self, tag):
         text = self.input_field.toPlainText().strip()

@@ -107,6 +107,22 @@ class DatabaseManager:
 
         cursor.close()
         connection.close()
+    
+    def get_all_sources(self):
+        try:
+            connection = self.connect()
+            cursor = connection.cursor()
+
+            cursor.execute("SELECT id, filename, title, author, date, note FROM sources")
+            sources = cursor.fetchall()
+
+            cursor.close()
+            connection.close()
+
+            return sources
+        except mysql.connector.Error as err:
+            print(f"[DB] Fehler beim Abrufen der Quellen: {err}")
+            return []
 
     def create_prompt(self, content, tag, source_id, local_id):
         connection = self.connect()

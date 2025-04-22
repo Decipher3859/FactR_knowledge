@@ -7,12 +7,16 @@ import os
 from patterns import *
 
 class PromptCollection(QWidget):
-    def __init__(self, controller):
+    def __init__(self, module_manager, controller):
         super().__init__()
+        self.module_manager = module_manager
         self.controller = controller
+        self.name = "Sammlung"
+        self.icon_path = "prompt_collection.png"
+        self.module_manager.register_module(self)
+
         self.project = controller.get_project()
         self.db_manager = controller.get_db_manager()
-        self.setup_ui()
         
         self.refresh_prompt_table
 
@@ -30,6 +34,8 @@ class PromptCollection(QWidget):
 
         self.layout.addWidget(self.table)
         self.setLayout(self.layout)
+
+        return self
 
     def refresh_prompt_table(self):
         self.table.setRowCount(0)

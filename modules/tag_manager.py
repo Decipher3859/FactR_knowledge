@@ -1,6 +1,6 @@
 import os
 import re
-from markup_parser import *
+from modules.markup_parser import *
 from patterns import MARKUP_PATTERN
 
 

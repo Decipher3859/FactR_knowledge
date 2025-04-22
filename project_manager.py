@@ -59,21 +59,35 @@ class ProjectManager:
             self.project_name = project_name
 
     def load_last_project(self):
+        project_name = self.get_last_project()
+        if project_name:
+            self.load_project(project_name)
+            return True
+        else:
+            print("Kein letztes Projekt gefunden.")
+            return False
+
+    def set_last_project(self):
+        try:
+            with open("config.json", "w") as config_file:
+                data = {"last_project": self.project_name}
+                json.dump(data, config_file, indent=4)
+        except Exception as e:
+            print(f"Fehler beim Speichern des letzten Projekts: {e}")
+        return data
+    
+    def get_last_project(self):
         try:
             with open("config.json", "r") as config_file:
                 data = json.load(config_file)
-                project_name = data.get("last_project")
-                if project_name:
-                    self.load_project(project_name)
-                    return True
-                else:
-                    print("Kein letztes Projekt gefunden.")
-                    return False
+                return data.get("last_project", None)
         except FileNotFoundError:
-            print("Konfigurationsdatei nicht gefunden")
+            print("Konfigurationsdatei nicht gefunden.")
+            return None
+
 
     def get_project(self):
-        return self.project
+        return self
     
     @property
     def source_dir(self):

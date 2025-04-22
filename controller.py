@@ -1,24 +1,23 @@
 import json
 from project_manager import ProjectManager
 from database_manager import DatabaseManager
+from module_manager import ModuleManager
 from gui import MainWindow
-from source_analyzer import *
-from prompt_collection import *
+from modules.source_analyzer import *
+from modules.prompt_collection import *
 
 class Controller:
     def __init__(self):
         self.project_manager = ProjectManager()
         self.db_manager = None
-
+        self.module_manager = ModuleManager(self)
         self.main_window = MainWindow(self)
 
     def start_application(self):
-        print("Start application")
         self.main_window.show()
-        print("self.main_window: ", self.main_window)
         if self.load_last_project():
             print("load_last_project(): ", self.load_last_project)
-            db_conf = self.project_manager.get_db_manager()
+            db_conf = self.project_manager.database
             print("db_conf: ", db_conf)
             self.db_manager = DatabaseManager(**db_conf)
         else:
@@ -30,14 +29,27 @@ class Controller:
         self.db_manager = DatabaseManager(**db_config)
         self.db_manager.create_database()
         self.db_manager.create_tables()
-        self.main_window.initialize_modules()
+        self.project_manager.set_last_project()
+        self.module_manager.initialize_modules()
+        self.main_window.create_module_ui()
+        self.main_window.setWindowTitle(project_name)
+    
+    def load_project(self, project_name):
+        self.project_manager.load_project(project_name)
+        self.project = self.project_manager.get_project()
+        self.db_manager = DatabaseManager(**self.project.database)
+        self.module_manager.initialize_modules()
+        self.main_window.create_module_ui()
+        self.main_window.setWindowTitle(project_name)
 
     def load_last_project(self):
         if self.project_manager.load_last_project():
-            self.db_manager = self.project_manager.get_db_manager()
+            self.db_manager = self.get_db_manager()
             print(f"Projekt {self.project_manager.get_project().project_name} wurde geladen.")
+            return True
         else:
             print("Kein letztes Projekt gefunden.")
+            return False
 
     def get_project(self):
         return self.project_manager.get_project()
@@ -47,10 +59,5 @@ class Controller:
 
     def show_create_project_dialog(self):
         self.main_window.show_create_project_dialog()
-
-    def handle_prompt_added(self):
-        print("Neues Prompt hinzugefügt. Auffrischen der Tabelle...")
-        
-        self.prompt_collection.refresh_prompt_table()
 
 

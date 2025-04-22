@@ -10,9 +10,9 @@ from PyQt5.QtWidgets import (
 
 )
 from PyQt5.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QIcon
-from prompt_creator import PromptCreator
-from prompt_collection import PromptCollection
-from source_analyzer import SourceAnalyzer
+from modules.prompt_creator import PromptCreator
+from modules.prompt_collection import PromptCollection
+from modules.source_analyzer import SourceAnalyzer
 
 
 
@@ -32,9 +32,7 @@ class MainWindow(QMainWindow):
         central_layout.addWidget(self.sidebar, 1)
 
         self.stack = QStackedWidget()
-
         central_layout.addWidget(self.stack, 4)
-
         self.setCentralWidget(central_widget)
 
         self.create_menu()
@@ -79,41 +77,73 @@ class MainWindow(QMainWindow):
             self.prompt_collection.refresh_prompt_table()
 
             self.source_analyzer.project = self.project
-            self.source_analyzer.load_sources_from_dir()
-
-    # def open_file(self):
-    #     path, _ = QFileDialog.getOpenFileName(self, "Datei öffnen", "", "Markdown-Dateien (*.md);;Alle Dateien (*)")
-    #     if path:
-    #         try:
-    #             with open(path, 'r', encoding='utf-8') as file:
-    #                 content = file.read()
-    #                 self.load_text(content)
-    #         except Exception as e:
-    #             QMessageBox.warning(self, "Fehler", f"Konnte Datei nicht öffnen:\n{str(e)}")
+            self.source_analyzer.load_sources_from_db()
 
     def create_sidebar(self):
-        sidebar = QWidget(self)
-        sidebar_layout = QVBoxLayout(sidebar)
+        if not hasattr(self, 'sidebar'):
+            self.sidebar = QWidget(self)
+            self.sidebar_layout = QVBoxLayout(self.sidebar)
 
-        self.add_sidebar_button(sidebar_layout, "Sammlung", "collection_icon.png", self.show_collection)
-        self.add_sidebar_button(sidebar_layout, "Beziehungen", "Map_icon.png", self.show_map)
-        self.add_sidebar_button(sidebar_layout, "Ablauf", "timeline_icon.png", self.show_timeline)
-        self.add_sidebar_button(sidebar_layout, "Quellen", "source_icon.png", self.show_source)
-        self.add_sidebar_button(sidebar_layout, "Prompt", "prompt_icon.png", self.create_prompt)
+            self.sidebar_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
-        sidebar_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+            self.sidebar.setLayout(self.sidebar_layout)
+            self.setMenuWidget(self.sidebar)
 
-        sidebar.setLayout(sidebar_layout)
-        self.setMenuWidget(sidebar)
+    def create_module_ui(self):
+        module_manager = self.controller.module_manager
+        self.modules = module_manager.get_modules()
+        
+        if not self.modules:
+            print("Keine Module gefunden.")
+            return  
+        
+        for module in self.modules:
+            try:
+                widget = module.setup_ui()
+                if widget:
+                    self.stack.addWidget(widget)
+                else:
+                    print(f"Modul {module.name} hat kein UI Model zurückgegeben.")
+            except Exception as e:
+                print(f"Fehler beim Erstellen der UI für Modul {module.name}: {e}")
+        
+        self.update_sidebar_with_modules()
 
-        return sidebar
+    def update_sidebar_with_modules(self):
+        if not hasattr(self, 'sidebar'):
+            print("Sidebar nicht gefunden.")
+            return
+        
+        for i in reversed(range(self.sidebar.count())):
+            widget = self.sidebar_layout.itemAt(i).widget()
+            if widget:
+                widget.deleteLater()
+
+        if not hasattr(self, 'modules') or not self.modules:
+            print("Keine Module gefunden.")
+            return
+        
+        for module in self.modules:
+            self.add_sidebar_button(self.sidebar_layout, module.name, module.icon_path, self.change_view)
 
     def add_sidebar_button(self, layout, text, icon_path, action):
         button = QPushButton(text)
-        button.setIcon(QIcon(icon_path))
+        if icon_path:    
+            button.setIcon(QIcon(icon_path))
         button.clicked.connect(action)
         layout.addWidget(button)
     
+    def change_view(self):
+        sender = self.sender()
+        if sender:
+            module_name = sender.text()
+
+            for i, module in enumerate(self.modules):
+                if module.name == module_name:
+                    self.stack.setCurrentIndex(i)
+                    self.update_context_toolbar(module_name)
+                    break
+
     def show_collection(self):
         self.update_context_toolbar("show_collection")
         self.stack.setCurrentIndex(0)
@@ -133,19 +163,6 @@ class MainWindow(QMainWindow):
     def create_prompt(self):
         self.update_context_toolbar("create_prompt")
         self.stack.setCurrentIndex(4)
-
-    def initialize_modules(self):
-        self.prompt_collection = PromptCollection(self.controller)
-        self.map_widget = QLabel("Beziehungen")
-        self.timeline_widget = QLabel("Zeitverlauf")
-        self.source_analyzer = SourceAnalyzer(self.controller)
-        self.prompt_creator = PromptCreator(self.controller)
-
-        self.stack.addWidget(self.prompt_collection)  
-        self.stack.addWidget(self.map_widget)         
-        self.stack.addWidget(self.timeline_widget)    
-        self.stack.addWidget(self.source_analyzer)    
-        self.stack.addWidget(self.prompt_creator)     
 
     def update_context_toolbar(self, context):
         self.context_toolbar.clear()
@@ -175,7 +192,8 @@ class MainWindow(QMainWindow):
             action.triggered.connect(self.create_prompt)
             self.context_toolbar.addAction(action)
 
-    
+
+
 class CreateProjectDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
