@@ -1,17 +1,17 @@
 import mysql.connector
 from mysql.connector import Error
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import QObject, pyqtSignal
 
-class DatabaseManager:
+class DatabaseManager(QObject):
+    prompt_added = pyqtSignal()
+    
     def __init__(self, host, user, password, database):
-        print("DBManager wird initialisiert.")
+        super().__init__()
         self.connection = None
         self.host = host
         self.user = user
         self.password = password
         self.database = database
-
-        self.prompt_added = pyqtSignal()
 
     def create_database(self):
         print("DBManager.crete_database() wird aufgerufen.")
@@ -124,20 +124,25 @@ class DatabaseManager:
             print(f"[DB] Fehler beim Abrufen der Quellen: {err}")
             return []
 
-    def create_prompt(self, content, tag, source_id, local_id):
-        connection = self.connect()
-        cursor = connection.cursor()
+    def create_prompt(self, content, tag, source_id):
+        try:
+            connection = self.connect()
+            cursor = connection.cursor()
 
-        cursor.execute('''
-            INSERT INTO prompts (content, tag, source_id, local_id)
-            VALUES (%s, %s, %s, %s)
-        ''', (content, tag, source_id, local_id))
-        connection.commit()
+            local_id = self.get_next_local_id(source_id)
 
-        cursor.close()
-        connection.close()
+            cursor.execute('''
+                INSERT INTO prompts (content, tag, source_id, local_id)
+                VALUES (%s, %s, %s, %s)
+            ''', (content, tag, source_id, local_id))
+            connection.commit()
 
-        self.prompt_added.emit()
+            cursor.close()
+            connection.close()
+
+            self.prompt_added.emit()
+        except mysql.connector.Error as err:
+            print(f"[DB] Fehler beim Erstellen des Prompts: {err}")
 
     def get_all_prompts(self):
         connection = self.connect()
@@ -150,6 +155,13 @@ class DatabaseManager:
         connection.close()
 
         return prompts
+    
+    def get_next_local_id(self, source_id):
+        result = self.fetchone(
+            "SELECT MAX(local_id) FROM prompts WHERE source_id = %s",
+            (source_id,)         
+        )
+        return result[0] + 1 if result[0] is not None else 1
 
     def create_relation(self, parent_id, child_id, relation_type):
         connection = self.connect()
@@ -163,3 +175,15 @@ class DatabaseManager:
 
         cursor.close()
         connection.close()
+
+    def fetchone(self, query, params=None):
+        connection = self.connect()
+        cursor = connection.cursor()
+
+        cursor.execute(query, params or ())
+        result = cursor.fetchone()
+
+        cursor.close()
+        connection.close()
+
+        return result

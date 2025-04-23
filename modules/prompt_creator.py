@@ -12,15 +12,13 @@ class PromptCreator(QWidget):
     def __init__(self, module_manager, controller):
         super().__init__()
         self.module_manager = module_manager
-        print("module_manager in PromptCreator: ", self.module_manager)
         self.controller = controller
-        print("controller in PromptCreator: ", self.controller)
         self.name = "Prompt Creator"
         self.icon_path = "prompt_creator.png"
         self.module_manager.register_module(self)
 
         self.project = self.controller.get_project()
-        print("self.project in PromptCreator: ", self.project)
+        self.db = self.controller.db_manager
 
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
@@ -53,14 +51,13 @@ class PromptCreator(QWidget):
         if not text:
             return
         
-        source = 0
-        id_ = self.tag_manager.get_max_id_from_file(tag) + 1
+        source_id = 0
 
-        wrapped = MARKUP_TEMPLATE.format(tag=tag, source=source, id=id_, text=text)
-
-        file_path = os.path.join(self.project.project_dir, tag_to_file[tag])
-        with open(file_path, "a", encoding="utf-8") as f:
-            f.write(f"{wrapped}\n")
+        self.controller.db_manager.create_prompt(
+            content=text,
+            tag=tag,
+            source_id=source_id,
+        )
 
         self.input_field.clear()
 

@@ -20,6 +20,9 @@ class Controller:
             db_conf = self.project_manager.database
             print("db_conf: ", db_conf)
             self.db_manager = DatabaseManager(**db_conf)
+            self.module_manager.initialize_modules()
+            self.main_window.create_module_ui()
+            self.main_window.setWindowTitle(self.project_manager.get_project().project_name)
         else:
             self.main_window.show_create_project_dialog()
 
