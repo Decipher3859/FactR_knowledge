@@ -25,15 +25,11 @@ class MainWindow(QMainWindow):
 
         self.controller = controller
 
-        central_widget = QWidget(self)
-        central_layout = QHBoxLayout(central_widget)
+        self.central_widget = QWidget(self)
+        self.central_layout = QHBoxLayout(self.central_widget)
+        self.central_widget.setLayout(self.central_layout)
+        self.setCentralWidget(self.central_widget)
 
-        self.sidebar = self.create_sidebar()
-        central_layout.addWidget(self.sidebar, 1)
-
-        self.stack = QStackedWidget()
-        central_layout.addWidget(self.stack, 4)
-        self.setCentralWidget(central_widget)
 
         self.create_menu()
         
@@ -79,16 +75,6 @@ class MainWindow(QMainWindow):
             self.source_analyzer.project = self.project
             self.source_analyzer.load_sources_from_db()
 
-    def create_sidebar(self):
-        if not hasattr(self, 'sidebar'):
-            self.sidebar = QWidget(self)
-            self.sidebar_layout = QVBoxLayout(self.sidebar)
-
-            self.sidebar_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
-
-            self.sidebar.setLayout(self.sidebar_layout)
-            self.setMenuWidget(self.sidebar)
-
     def create_module_ui(self):
         module_manager = self.controller.module_manager
         self.modules = module_manager.get_modules()
@@ -97,6 +83,7 @@ class MainWindow(QMainWindow):
             print("Keine Module gefunden.")
             return  
         
+        self.stack = QStackedWidget(self)
         for module in self.modules:
             try:
                 widget = module.setup_ui()
@@ -107,14 +94,36 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 print(f"Fehler beim Erstellen der UI für Modul {module.name}: {e}")
         
+        print("Stack Layout:", self.central_layout)
+        self.central_layout.addWidget(self.stack, 4)
+        self.create_sidebar()
+        print("modules:", self.modules)
         self.update_sidebar_with_modules()
+
+
+    def create_sidebar(self):
+        if not hasattr(self, 'sidebar_dock'):
+            self.sidebar = QWidget(self)
+            self.sidebar_layout = QVBoxLayout(self.sidebar)
+
+            self.sidebar_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+            self.sidebar_dock = QDockWidget("Sidebar", self)
+            self.sidebar_dock.setWidget(self.sidebar)
+            self.sidebar_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+            self.sidebar_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+
+            self.addDockWidget(Qt.LeftDockWidgetArea, self.sidebar_dock)
+        
+
 
     def update_sidebar_with_modules(self):
         if not hasattr(self, 'sidebar'):
             print("Sidebar nicht gefunden.")
             return
         
-        for i in reversed(range(self.sidebar.count())):
+        print("Sidebar_Layout:", self.sidebar_layout)
+        for i in reversed(range(self.sidebar_layout.count())):
             widget = self.sidebar_layout.itemAt(i).widget()
             if widget:
                 widget.deleteLater()
@@ -124,6 +133,7 @@ class MainWindow(QMainWindow):
             return
         
         for module in self.modules:
+            print("Module Button hinzugefügt::", module)
             self.add_sidebar_button(self.sidebar_layout, module.name, module.icon_path, self.change_view)
 
     def add_sidebar_button(self, layout, text, icon_path, action):
