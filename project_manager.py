@@ -37,7 +37,9 @@ class ProjectManager:
             "paths": {
                 "project_path": self.project_dir,
                 "source_folder": os.path.join(self.project_dir, "sources")
-            }
+            },
+            "available_modules": [],
+            "open_instances": []
         }
 
         with open(self.proj_file, "w", encoding="utf-8") as f:
@@ -84,6 +86,42 @@ class ProjectManager:
         except FileNotFoundError:
             print("Konfigurationsdatei nicht gefunden.")
             return None
+
+    def save_active_modules_and_instances(self):
+        if self.project_data is None:
+            print("Projektdaten sind nicht geladen.")
+            return
+        
+        available_modules = [module.name for module in self.module_manager.modules]
+        self.project_data["available_modules"] = available_modules
+
+        open_instances = []
+        for module in self.module_manager.modules:
+            for module in self.module_manager.modules:
+                instance_data = {
+                    "module_name": module.name,
+                    "instance_id": module.instance_id,
+                    "position": module.position,
+                }
+        
+        self.project_data["open_instances"] = open_instances
+
+        with open(self.proj_file, "w", encoding="utf-8") as f:
+            json.dump(self.project_data, f, indent=4)
+
+    def load_active_modules_and_instances(self):
+        available_modules = self.project_data.get("available_modules", [])
+        for module_name in available_modules:
+            self.add_module_by_name(module_name)
+
+        open_instances = self.project_data.get("open_instances", [])
+        for instance in open_instances:
+            self.add_instance_at_position(instance)
+
+    def add_module_by_name(self, module_name):
+        module = self.create_module_by_name(module_name)
+        if module:
+            self.module_manager.add_module(module)
 
 
     def get_project(self):

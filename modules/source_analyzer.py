@@ -10,26 +10,26 @@ from modules.tag_manager import *
 from patterns import MARKUP_PATTERN, MARKUP_TEMPLATE
 
 class SourceAnalyzer(QWidget):
-    def __init__ (self, module_manager, controller):
+    def __init__ (self, module_manager, controller, instance_id=None, position=None):
         super().__init__()
         self.module_manager = module_manager
         self.controller = controller
-        self.name = "Quellanalyse"
+
+        self.module_name = "Quellanalyse"
         self.icon_path = "source_analyzer.png"
-        self.module_manager.register_module(self)
+        self.instance_id = instance_id
 
         self.project = self.controller.get_project()
-        print("self.project in SourceAnalyzer: ", self.project)
         self.db_manager = controller.get_db_manager()
-        print("self.db_manager in SourceAnalyzer: ", self.db_manager)
+
+        self.setup_ui()
 
         self.text_area = CustomTextEdit(self)
-        print("self.text_area in SourceAnalyzer: ", self.text_area)
         self.current_source_id = 1
         self.tag_manager = TagManager(self.text_area.toPlainText(), self.project)
-        print("self.tag_manager in SourceAnalyzer: ", self.tag_manager)
         self.highlighter = DiscourseHighlighter(self.text_area.document())
-        print("self.highlighter in SourceAnalyzer: ", self.highlighter)
+
+
         
     def setup_ui(self):
         splitter = QSplitter(Qt.Horizontal, self)
@@ -270,3 +270,15 @@ class DiscourseHighlighter(QSyntaxHighlighter):
                     fmt = QTextCharFormat()
                     fmt.setBackground(QColor(self.tag_colors[tag]))
                     self.setFormat(highlight_start, highlight_length, fmt)
+
+    @property
+    def name(self):
+        return self.__class__.__name__
+    
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "instance_id": self.instance_id,
+            "position": self.position,
+            "icon_path": self.icon_path
+        }

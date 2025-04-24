@@ -1,18 +1,18 @@
 import os
-import markdown
-import re
-import shutil
+import json
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QMainWindow, QTextEdit, QTextBrowser, QVBoxLayout, QHBoxLayout, 
-    QWidget, QStackedWidget, QAction, QFileDialog, QMessageBox, QMenu, QMenuBar, QToolBar,
+    QWidget, QStackedWidget, QAction, QFileDialog, QMessageBox, QMenu, QMenuBar, QToolBar, QSplitter,
     QLabel, QPushButton, QSpacerItem, QSizePolicy, QDockWidget, QInputDialog, QDialog, QDialogButtonBox, QLineEdit
 
 )
-from PyQt5.QtGui import QSyntaxHighlighter, QTextCharFormat, QColor, QIcon
+from PyQt5.QtGui import QIcon
 from modules.prompt_creator import PromptCreator
 from modules.prompt_collection import PromptCollection
 from modules.source_analyzer import SourceAnalyzer
+from modules.layout_templates import *
 
 
 
@@ -24,17 +24,29 @@ class MainWindow(QMainWindow):
         # self.showMaximized()
 
         self.controller = controller
-
-        self.central_widget = QWidget(self)
-        self.central_layout = QHBoxLayout(self.central_widget)
-        self.central_widget.setLayout(self.central_layout)
-        self.setCentralWidget(self.central_widget)
-
+        self.module_manager = self.controller.module_manager
 
         self.create_menu()
         
+        # label = QLabel("Ist das Fenster sichtbar?")
+        # label.setStyleSheet("font-size: 24px; color: red;")
+        # self.setCentralWidget(label)
+
+        # label = QLabel("Main Window sichtbar")
+        # label.setAlignment(Qt.AlignCenter)
+        # self.setCentralWidget(label)
+        # self.show()  # unbedingt show() aufrufen
+
+
         self.context_toolbar = QToolBar("Kontext_Werkzeugleiste")
         self.addToolBar(Qt.TopToolBarArea, self.context_toolbar)
+
+
+
+        self.workspace = SplitContainer(Qt.Vertical, self.module_manager)
+        self.workspace.add_from_structure(empty_split_container())
+
+        self.setCentralWidget(self.workspace)
 
     def create_menu(self):
         menu_bar = self.menuBar()
@@ -75,31 +87,6 @@ class MainWindow(QMainWindow):
             self.source_analyzer.project = self.project
             self.source_analyzer.load_sources_from_db()
 
-    def create_module_ui(self):
-        module_manager = self.controller.module_manager
-        self.modules = module_manager.get_modules()
-        
-        if not self.modules:
-            print("Keine Module gefunden.")
-            return  
-        
-        self.stack = QStackedWidget(self)
-        for module in self.modules:
-            try:
-                widget = module.setup_ui()
-                if widget:
-                    self.stack.addWidget(widget)
-                else:
-                    print(f"Modul {module.name} hat kein UI Model zurückgegeben.")
-            except Exception as e:
-                print(f"Fehler beim Erstellen der UI für Modul {module.name}: {e}")
-        
-        print("Stack Layout:", self.central_layout)
-        self.central_layout.addWidget(self.stack, 4)
-        self.create_sidebar()
-        print("modules:", self.modules)
-        self.update_sidebar_with_modules()
-
 
     def create_sidebar(self):
         if not hasattr(self, 'sidebar_dock'):
@@ -115,7 +102,6 @@ class MainWindow(QMainWindow):
 
             self.addDockWidget(Qt.LeftDockWidgetArea, self.sidebar_dock)
         
-
 
     def update_sidebar_with_modules(self):
         if not hasattr(self, 'sidebar'):
@@ -142,67 +128,142 @@ class MainWindow(QMainWindow):
             button.setIcon(QIcon(icon_path))
         button.clicked.connect(action)
         layout.addWidget(button)
+
+    def load_workspace_structure(self, project):
+        try:
+            file_path = os.path.join(project.project_dir, f"{project.project_name}.proj")
+            with open(file_path, "r", encoding="utf-8") as f:
+                project_data = json.load(f)
+
+                workspace_structure = project_data.get("open_instances", None)
+                if workspace_structure:
+                    if isinstance(workspace_structure, list):
+                        for dictionary in workspace_structure:
+                            if isinstance(dictionary, dict):
+                                self.workspace.add_from_structure(dictionary)
+                            else:
+                                print("Ein Element in der Liste ist kein gültiges Dictionary.")
+                        self.workspace.add_from_structure(workspace_structure)
+                    else:
+                        print("Liste ist kein gültiges Format.")
+                else:
+                    print("Keine Struktur für den Arbeitsbereich gefunden.")
+        except FileNotFoundError:
+            print("Projektdatei nicht gefunden.")
     
-    def change_view(self):
-        sender = self.sender()
-        if sender:
-            module_name = sender.text()
 
-            for i, module in enumerate(self.modules):
-                if module.name == module_name:
-                    self.stack.setCurrentIndex(i)
-                    self.update_context_toolbar(module_name)
-                    break
+class SplitContainer(QWidget):
+    def __init__(self, orientation=Qt.Vertical, module_manager=None):
+        super().__init__()
+        self.module_manager = module_manager
+        
+        self.setStyleSheet("background-color: lightblue;")
+        
+        self.splitter = QSplitter(orientation)
 
-    def show_collection(self):
-        self.update_context_toolbar("show_collection")
-        self.stack.setCurrentIndex(0)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.splitter)
+        self.setLayout(layout)
 
-    def show_map(self):
-        self.update_context_toolbar("show_map")
-        self.stack.setCurrentIndex(1)
+    def add_module(self, module_widget):
+        self.splitter.addWidget(module_widget)
 
-    def show_timeline(self):
-        self.update_context_toolbar("show_timeline")
-        self.stack.setCurrentIndex(2)
+    def add_split(self, orientation=Qt.Horizontal):
+        new_container = SplitContainer(orientation, self.module_manager)
+        self.splitter.addWidget(new_container)
+        return new_container
 
-    def show_source(self):
-        self.update_context_toolbar("show_source")
-        self.stack.setCurrentIndex(3)
-
-    def create_prompt(self):
-        self.update_context_toolbar("create_prompt")
-        self.stack.setCurrentIndex(4)
-
-    def update_context_toolbar(self, context):
-        self.context_toolbar.clear()
-
-        if context == "show_collection":
-            action = QAction("Sammlung", self)
-            action.triggered.connect(self.show_collection)
-            self.context_toolbar.addAction(action)
-
-        elif context == "show_map":
-            action = QAction("Struktur", self)
-            action.triggered.connect(self.show_map)
-            self.context_toolbar.addAction(action)
-
-        elif context == "show_timeline":
-            action = QAction("Ablauf", self)
-            action.triggered.connect(self.show_timeline)
-            self.context_toolbar.addAction(action)
-
-        elif context == "show_source":
-            action = QAction("Quelle", self)
-            action.triggered.connect(self.show_source)
-            self.context_toolbar.addAction(action)
-
-        elif context == "create_prompt":
-            action = QAction("Prompt", self)
-            action.triggered.connect(self.create_prompt)
-            self.context_toolbar.addAction(action)
+    def find_children(self):
+        return [self.splitter.widget(i) for i in range(self.splitter.count())]  
+    
+    def add_from_structure(self, structure_dict):
+        if isinstance(structure_dict, dict):
+            if structure_dict["type"] == "split":
+                child_split = SplitContainer(Qt.Orientation(structure_dict["orientation"]), self.module_manager)
+                self.add_split(child_split)
+                for child in structure_dict["children"]:
+                    child_split.add_from_structure(child)
+            elif structure_dict["type"] == "module":
+                module = self.module_manager.add_instance(
+                    structure_dict["name"],
+                    structure_dict["instance_id"]
+                )
+                self.add_module(module)
+            self.splitter.setSizes([500,500])
+        else:
+            print("Struktur ist kein gültiges Dictionary.")
 
 
+
+    def to_structure(self):
+        children = []
+        for module in self.find_children():
+            if isinstance(module, SplitContainer):
+                children.append(module.to_structure())
+            else:
+                module_data = {
+                    "type": "module",
+                    "name": module.name,
+                    "instance_id": module.instance_id,
+                    "position": module.position
+                }
+                children.append(module_data)
+        return {
+            "type": "split",
+            "orientation": self.orientation(),
+            "children": children
+        }
+    
+    @staticmethod
+    def from_dict(self, data):
+        if data["type"] != "split":
+            raise ValueError("Invalid data format for SplitContainer")
+        
+        orientation = Qt.Horizontal if data["orientation"] == "horizontal" else Qt.Vertical
+        container = SplitContainer(orientation)
+
+        for child in data.get("children", ()):
+            if child["type"] == "split":
+                child_container = SplitContainer.from_dict(child)
+                container.add_module(child_container)
+            elif child["type"] == "module":
+                name = child["name"]
+                instance_id = child["instance_id"]
+                module = self.controller.module_manager.get_instance(name, instance_id)
+
+                if module is None:
+                    print(f"Modul nicht gefunden: {name} mit ID {instance_id}")
+                    continue
+
+                module.position = child.get("position", 0)
+                container.add_module(module)
+            else: print(f"Unbekannter Typ in Container: {child['type']}")
+
+        return container
+
+    def to_dict(self):
+        container_dict = {
+            "type": "split",
+            "orientation": "horizontal" if self.orientation() == Qt.Horizontal else "vertical",
+            "children": []
+        }
+
+        for i in range(self.splitter.count()):
+            widget = self.splitter.widget(i)
+
+            if isinstance(widget, SplitContainer):
+                container_dict["children"].append(widget.to_dict())
+
+            elif hasattr(widget, "to_dict") and callable(widget.to_dict):
+                container_dict["children"].append({
+                    "type": "module",
+                    "data": widget.to_dict()
+                })
+        
+        return container_dict
+    
+  
 
 class CreateProjectDialog(QDialog):
     def __init__(self, parent=None):

@@ -9,16 +9,20 @@ import os
 import re
 
 class PromptCreator(QWidget):
-    def __init__(self, module_manager, controller):
+    def __init__(self, module_manager, controller, instance_id=None, position=None):
         super().__init__()
         self.module_manager = module_manager
         self.controller = controller
-        self.name = "Prompt Creator"
+
+        self.module_name = "Prompt Creator"
         self.icon_path = "prompt_creator.png"
-        self.module_manager.register_module(self)
+        self.instance_id = instance_id
 
         self.project = self.controller.get_project()
         self.db = self.controller.db_manager
+
+        self.setup_ui()
+        print("setup_ui() wurde aufgerufen.")
 
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
@@ -62,3 +66,14 @@ class PromptCreator(QWidget):
         self.input_field.clear()
 
     
+    @property
+    def name(self):
+        return self.__class__.__name__
+    
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "instance_id": self.instance_id,
+            "position": self.position,
+            "icon_path": self.icon_path
+        }

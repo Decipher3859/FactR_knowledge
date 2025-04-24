@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView
+    QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLabel
 )
 from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtCore import Qt
@@ -7,21 +7,26 @@ import os
 from patterns import *
 
 class PromptCollection(QWidget):
-    def __init__(self, module_manager, controller):
+    def __init__(self, module_manager, controller, instance_id=None, position=None):
         super().__init__()
         self.module_manager = module_manager
         self.controller = controller
-        self.name = "Sammlung"
+
+        self.module_name = "PromptCollection"
         self.icon_path = "prompt_collection.png"
-        self.module_manager.register_module(self)
+        self.instance_id = instance_id
 
         self.project = controller.get_project()
-        self.db_manager = controller.get_db_manager()
+        self.db = controller.db_manager
+
+        self.setup_ui()
+        print("setup_ui() wurde aufgerufen.")
         
-        self.refresh_prompt_table
 
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
+
+        self.layout.addWidget(QLabel("Prompt Collection sichtbar"))
         self.table = QTableWidget()
         self.table.setRowCount(0)
         self.table.setColumnCount(4)
@@ -34,12 +39,16 @@ class PromptCollection(QWidget):
 
         self.layout.addWidget(self.table)
         self.setLayout(self.layout)
-
+        
+        self.refresh_prompt_table()
+        self.db.prompt_added.connect(self.refresh_prompt_table)
+        
         return self
 
     def refresh_prompt_table(self):
+        print("refresh_prompt_table() wird aufgerufen.")
         self.table.setRowCount(0)
-        prompts = self.db_manager.get_all_prompts()
+        prompts = self.db.get_all_prompts()
 
         for prompt in prompts:
             _, content, tag, source, local_id, _, = prompt
@@ -71,3 +80,14 @@ class PromptCollection(QWidget):
         self.table.setRowHeight(row_position, visible_lines * line_height + 6)
 
 
+    @property
+    def name(self):
+        return self.__class__.__name__
+    
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "instance_id": self.instance_id,
+            "position": self.position,
+            "icon_path": self.icon_path
+        }

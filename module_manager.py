@@ -4,23 +4,46 @@ from modules.prompt_creator import PromptCreator
 
 class ModuleManager:
     def __init__(self, controller):
+        print("ModuleManager initialized")
         self.controller = controller
-        self.modules = []
+        self.modules = {}
+        self.available_modules = {
+            "SourceAnalyzer": SourceAnalyzer,
+            "PromptCollection": PromptCollection,
+            "PromptCreator": PromptCreator,
+        }
+        self.instances = {}
 
-        self.prompt_collection = None
-        self.source_analyzer = None
-        self.prompt_creator = None
+    def add_instance(self, name, instance_id, position=None):
+        if(name, instance_id) not in self.modules:
+            instance = self.create_instance(
+                name, 
+                module_manager=self,
+                controller=self.controller,
+                instance_id=instance_id,
+                position=position
+                )
+            self.modules[(name, instance_id)] = instance
+        return self.modules[(name, instance_id)]
 
-    def initialize_modules(self):
-        self.prompt_collection  = PromptCollection(self, self.controller)
-        self.source_analyzer = SourceAnalyzer(self, self.controller)
-        self.prompt_creator = PromptCreator(self, self.controller)
 
-    def register_module(self, module):
-        self.modules.append(module)
+    def create_instance(self, name, *args, **kwargs):
+        print("Creating instance of module:", name)
+        cls = self.available_modules.get(name)
+        if cls is None:
+            raise ValueError(f"Module '{name}' is not available.")
+        
+        instance = cls(*args, **kwargs)
+        instance.instance_id = id(instance)
+        instance.position = 0
+        self.register_instance(name, instance)
+        return instance
+
+    def register_instance(self, name, instance):
+        if name not in self.instances:
+            self.instances[name] = {}
+        self.instances[name][instance.instance_id] = instance
     
-    def get_modules(self):
-        return self.modules
-    
-
+    def get_instance(self, name, instance_id):
+        return self.instances.get(name, {}).get(instance_id, None)
 
