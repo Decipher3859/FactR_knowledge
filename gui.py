@@ -41,11 +41,7 @@ class MainWindow(QMainWindow):
         self.context_toolbar = QToolBar("Kontext_Werkzeugleiste")
         self.addToolBar(Qt.TopToolBarArea, self.context_toolbar)
 
-
-
         self.workspace = SplitContainer(Qt.Vertical, self.module_manager)
-        self.workspace.add_from_structure(empty_split_container())
-
         self.setCentralWidget(self.workspace)
 
     def create_menu(self):
@@ -143,7 +139,7 @@ class MainWindow(QMainWindow):
                                 self.workspace.add_from_structure(dictionary)
                             else:
                                 print("Ein Element in der Liste ist kein gültiges Dictionary.")
-                        self.workspace.add_from_structure(workspace_structure)
+                        # self.workspace.add_from_structure(workspace_structure)
                     else:
                         print("Liste ist kein gültiges Format.")
                 else:
@@ -169,31 +165,60 @@ class SplitContainer(QWidget):
     def add_module(self, module_widget):
         self.splitter.addWidget(module_widget)
 
-    def add_split(self, orientation=Qt.Horizontal):
-        new_container = SplitContainer(orientation, self.module_manager)
+        self.splitter.setSizes([1000, 1000])
+        self.splitter.setStretchFactor(0, 1)
+        module_widget.show()
+
+
+
+    def add_split(self, new_container):
+        
         self.splitter.addWidget(new_container)
-        return new_container
+        self.splitter.setSizes([640, 480])
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 1)
 
     def find_children(self):
         return [self.splitter.widget(i) for i in range(self.splitter.count())]  
     
     def add_from_structure(self, structure_dict):
         if isinstance(structure_dict, dict):
+            print("Wenn der Typ 'split' ist:")
             if structure_dict["type"] == "split":
+                print("instanzieren eines neuen SplitContainers mit der Orientierung:", structure_dict["orientation"])
                 child_split = SplitContainer(Qt.Orientation(structure_dict["orientation"]), self.module_manager)
+                print("Füge einen neuen SplitContainer hinzu")
                 self.add_split(child_split)
+                print("")
                 for child in structure_dict["children"]:
+                    print("")
                     child_split.add_from_structure(child)
+                print("")
+                child_split.show()
+                print(f"{child_split} hinzugefügt. - Sichtbar:{child_split.isVisible()}")
             elif structure_dict["type"] == "module":
+                print("")
+                print("")
                 module = self.module_manager.add_instance(
                     structure_dict["name"],
                     structure_dict["instance_id"]
                 )
+                print("")
                 self.add_module(module)
-            self.splitter.setSizes([500,500])
+                print(f"Struktur hinzugefügt: {structure_dict}")
+                print(f"Modul {module} hinzugefügt. - Sichtbar:{module.isVisible()}")
+
+                print("")
+                if len(self.splitter.children()) == 1:
+                    print("")
+                    self.splitter.setStretchFactor(0, 1)
+                    print("")
+                    self.splitter.setSizes([1000])     
+                    print("")
+            self.splitter.setSizes([500, 500])
+            
         else:
             print("Struktur ist kein gültiges Dictionary.")
-
 
 
     def to_structure(self):

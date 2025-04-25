@@ -27,6 +27,11 @@ class PromptCreator(QWidget):
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
 
+        print("Größe vor dem Setzen:", self.size())
+        self.setMinimumSize(500, 300)
+        print("Größe nach dem Setzen:", self.size())
+        self.setStyleSheet("background-color: lightgray;")
+
         self.input_field = QTextEdit()
         self.input_field.setPlaceholderText("Eigene Aussage, Gedanke, These hier eingeben...")
         self.input_field.setFixedHeight(60)
