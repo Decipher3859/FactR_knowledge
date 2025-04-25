@@ -36,7 +36,7 @@ class Controller:
         self.db_manager.create_database()
         self.db_manager.create_tables()
 
-        self.main_window.workspace.add_from_structure(default_new_project_structure())
+        self.main_window.load_workspace_structure(self.project_manager.get_project())
         self.main_window.setWindowTitle(project_name)
     
     def load_project(self, project_name):

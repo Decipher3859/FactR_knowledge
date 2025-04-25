@@ -13,12 +13,12 @@ class ProjectManager:
     
     def create_project(self, project_name):
         base_path = os.path.expanduser("~/ResearchAnalyzer-Projekte")
-        print("Base_path: ", base_path)
+
         self.project_name = project_name
-        print("Project Name: ", self.project_name)
         self.project_dir = os.path.join(base_path, project_name)
-        print("Project dir: ", self.project_dir)
+
         os.makedirs(self.project_dir, exist_ok=True)
+ 
         self.proj_file = os.path.join(self.project_dir, f"{project_name}.proj")
         source_dir = os.path.join(self.project_dir, "sources")
         os.makedirs(source_dir, exist_ok=True)
@@ -38,8 +38,31 @@ class ProjectManager:
                 "project_path": self.project_dir,
                 "source_folder": os.path.join(self.project_dir, "sources")
             },
-            "available_modules": [],
-            "open_instances": []
+            "available_modules": [
+                "SourceAnalyzer",
+                "PromptCollection",
+                "PromptCreator",
+            ],
+            "open_instances": [
+                {
+                    "type": "split",
+                    "orientation": 2,
+                    "children": [
+                        {
+                            "type": "module",
+                            "name": "PromptCollection",
+                            "instance_id": "1",
+                            "position": 0
+                        },
+                        {
+                            "type": "module",
+                            "name": "PromptCreator",
+                            "instance_id": "2",
+                            "position": 1
+                        }
+                    ]
+                }
+            ]
         }
 
         with open(self.proj_file, "w", encoding="utf-8") as f:
@@ -126,11 +149,11 @@ class ProjectManager:
 
     def get_project(self):
         return self
-    
+
     @property
     def source_dir(self):
         return self.project_data.get("paths", {}).get("source_folder", "")
-    
+        
     @property
     def database(self):
         return self.project_data.get("database", {})

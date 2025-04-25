@@ -24,20 +24,11 @@ class MainWindow(QMainWindow):
         # self.showMaximized()
 
         self.controller = controller
+        self.project_manager = self.controller.project_manager.get_project()
         self.module_manager = self.controller.module_manager
 
         self.create_menu()
         
-        # label = QLabel("Ist das Fenster sichtbar?")
-        # label.setStyleSheet("font-size: 24px; color: red;")
-        # self.setCentralWidget(label)
-
-        # label = QLabel("Main Window sichtbar")
-        # label.setAlignment(Qt.AlignCenter)
-        # self.setCentralWidget(label)
-        # self.show()  # unbedingt show() aufrufen
-
-
         self.context_toolbar = QToolBar("Kontext_Werkzeugleiste")
         self.addToolBar(Qt.TopToolBarArea, self.context_toolbar)
 
@@ -127,6 +118,10 @@ class MainWindow(QMainWindow):
 
     def load_workspace_structure(self, project):
         try:
+            self.workspace.deleteLater()
+            self.workspace = SplitContainer(Qt.Vertical, self.module_manager)
+            self.setCentralWidget(self.workspace)
+
             file_path = os.path.join(project.project_dir, f"{project.project_name}.proj")
             with open(file_path, "r", encoding="utf-8") as f:
                 project_data = json.load(f)
@@ -139,14 +134,12 @@ class MainWindow(QMainWindow):
                                 self.workspace.add_from_structure(dictionary)
                             else:
                                 print("Ein Element in der Liste ist kein gültiges Dictionary.")
-                        # self.workspace.add_from_structure(workspace_structure)
                     else:
                         print("Liste ist kein gültiges Format.")
                 else:
                     print("Keine Struktur für den Arbeitsbereich gefunden.")
         except FileNotFoundError:
             print("Projektdatei nicht gefunden.")
-    
 
 class SplitContainer(QWidget):
     def __init__(self, orientation=Qt.Vertical, module_manager=None):
@@ -162,14 +155,8 @@ class SplitContainer(QWidget):
         layout.addWidget(self.splitter)
         self.setLayout(layout)
 
-    def add_module(self, module_widget):
-        self.splitter.addWidget(module_widget)
-
-        self.splitter.setSizes([1000, 1000])
-        self.splitter.setStretchFactor(0, 1)
-        module_widget.show()
-
-
+    def add_module(self, module):
+        self.splitter.addWidget(module)
 
     def add_split(self, new_container):
         
@@ -183,7 +170,6 @@ class SplitContainer(QWidget):
     
     def add_from_structure(self, structure_dict):
         if isinstance(structure_dict, dict):
-            print("Wenn der Typ 'split' ist:")
             if structure_dict["type"] == "split":
                 print("instanzieren eines neuen SplitContainers mit der Orientierung:", structure_dict["orientation"])
                 child_split = SplitContainer(Qt.Orientation(structure_dict["orientation"]), self.module_manager)
@@ -197,13 +183,10 @@ class SplitContainer(QWidget):
                 child_split.show()
                 print(f"{child_split} hinzugefügt. - Sichtbar:{child_split.isVisible()}")
             elif structure_dict["type"] == "module":
-                print("")
-                print("")
                 module = self.module_manager.add_instance(
                     structure_dict["name"],
                     structure_dict["instance_id"]
                 )
-                print("")
                 self.add_module(module)
                 print(f"Struktur hinzugefügt: {structure_dict}")
                 print(f"Modul {module} hinzugefügt. - Sichtbar:{module.isVisible()}")
