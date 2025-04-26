@@ -4,7 +4,8 @@
 ### controller.py
 - [ ] statt ```set_module_manager``` vielleicht alle Hauptklassen Singleton gestalten?
 
-
+### database_manager.py
+- [ ] Die Datenbank bezieht sich im Moment noch auf jedes einzelne Projekt. Da ich auch Projekte mergen möchte oder zumindest Schnittmengen bilden will, macht es wahrscheinlich Sinn, eine Datenbank pro User anzulegen.
 ### project.py
 - [ ] ```self.source_file_path = os.path.join(self.project_path, "source", "text.md")```
 	- [ ] Bezieht sich momentan nur auf "text.md". Das ist eine Beipsieldatei. Eigentlich sollen alle Dateien im Source-Ordner verwaltet werden.

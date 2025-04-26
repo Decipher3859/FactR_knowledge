@@ -46,4 +46,7 @@ class ModuleManager:
     
     def get_instance(self, name, instance_id):
         return self.instances.get(name, {}).get(instance_id, None)
+    
+    def get_available_modules(self):
+        return list(self.available_modules.keys())
 

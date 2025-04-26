@@ -25,6 +25,8 @@ class Controller:
             print("db_conf: ", db_conf)
             self.db_manager = DatabaseManager(**db_conf)
             self.main_window.load_workspace_structure(self.project_manager.get_project())
+            print("Module Buttons werden gesetzt")
+            self.main_window.setup_module_buttons()
             self.main_window.setWindowTitle(self.project_manager.get_project().project_name)
         else:
             self.main_window.show_create_project_dialog()
@@ -37,6 +39,8 @@ class Controller:
         self.db_manager.create_tables()
 
         self.main_window.load_workspace_structure(self.project_manager.get_project())
+        print("Module Buttons werden gesetzt")
+        self.main_window.setup_module_buttons()
         self.main_window.setWindowTitle(project_name)
     
     def load_project(self, project_name):

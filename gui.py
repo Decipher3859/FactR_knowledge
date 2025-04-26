@@ -19,18 +19,18 @@ from modules.layout_templates import *
 class MainWindow(QMainWindow):
     def __init__(self, controller):
         super().__init__()
-        self.setWindowTitle("SourceAnalyzer")
+        self.setWindowTitle("FactR")
         self.setGeometry(100, 100, 800, 600)
         # self.showMaximized()
 
         self.controller = controller
-        self.project_manager = self.controller.project_manager.get_project()
+        self.project = self.controller.project_manager.get_project()
         self.module_manager = self.controller.module_manager
 
         self.create_menu()
         
-        self.context_toolbar = QToolBar("Kontext_Werkzeugleiste")
-        self.addToolBar(Qt.TopToolBarArea, self.context_toolbar)
+        self.toolbar = QToolBar("Kontext_Werkzeugleiste")
+        self.addToolBar(Qt.TopToolBarArea, self.toolbar)
 
         self.workspace = SplitContainer(Qt.Vertical, self.module_manager)
         self.setCentralWidget(self.workspace)
@@ -61,9 +61,9 @@ class MainWindow(QMainWindow):
 
         if selected_dir:
             project_name = os.path.basename(selected_dir)
-            self.project_manager.load_project(project_name)
-            self.project = self.project_manager.get_project()
-            self.db_manager = self.project_manager.get_db_manager()
+            self.project.load_project(project_name)
+            self.project = self.project.get_project()
+            self.db_manager = self.project.get_db_manager()
             self.setWindowTitle(self.project.project_name)
             QMessageBox.information(self, "Projekt geöffnet", f"Projekt '{project_name}' wurde geladen.")
 
@@ -74,47 +74,49 @@ class MainWindow(QMainWindow):
             self.source_analyzer.project = self.project
             self.source_analyzer.load_sources_from_db()
 
+    def setup_module_buttons(self):
+        self.module_buttons = {}
+        print("Module werden geladen")
+        for module_name in self.module_manager.get_available_modules():
+            print("Module: ", module_name)
+            print("Action wird erstellt")
+            action = QAction(module_name, self)
+            print("Action: ", action)
+            print("Trigger wird gesetzt")
+            action.triggered.connect(lambda checked, name=module_name: self.open_insert_menu(name))
+            print("Action wird zur Toolbar hinzugefügt")
+            self.toolbar.addAction(action)
+            
+            self.module_buttons[module_name] = action
 
-    def create_sidebar(self):
-        if not hasattr(self, 'sidebar_dock'):
-            self.sidebar = QWidget(self)
-            self.sidebar_layout = QVBoxLayout(self.sidebar)
+    def open_insert_menu(self, module_name):
+        menu = QMenu()
+        
+        file_path = os.path.join(self.project.project_dir, f"{self.project.project_name}.proj")
+        with open(file_path, "r", encoding="utf-8") as f:
+                project_data = json.load(f)
 
-            self.sidebar_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+                structure = project_data["open_instances"]
+                first_row = structure[0]["children"] if structure and structure[0]["type"] == "split" else []
 
-            self.sidebar_dock = QDockWidget("Sidebar", self)
-            self.sidebar_dock.setWidget(self.sidebar)
-            self.sidebar_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-            self.sidebar_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+                num_slots = len(first_row) + 1
 
-            self.addDockWidget(Qt.LeftDockWidgetArea, self.sidebar_dock)
+                for index in range(num_slots):
+                    action = QAction(f"Slot {index + 1}", self)
+                    action.triggered.connect(lambda checked, idx=index: self.insert_module_at(idx, module_name))
+                    menu.addAction(action)
+
+        button_pos = self.sender().parentWidget().mapToGlobal(self.sender().parentWidget().pos())
+        menu.exec_(button_pos)
+
+    def insert_module_at(self, index, module_name):
+        print(f"Modul {module_name} an Position {index} einfügen")
+        
         
 
-    def update_sidebar_with_modules(self):
-        if not hasattr(self, 'sidebar'):
-            print("Sidebar nicht gefunden.")
-            return
-        
-        print("Sidebar_Layout:", self.sidebar_layout)
-        for i in reversed(range(self.sidebar_layout.count())):
-            widget = self.sidebar_layout.itemAt(i).widget()
-            if widget:
-                widget.deleteLater()
 
-        if not hasattr(self, 'modules') or not self.modules:
-            print("Keine Module gefunden.")
-            return
-        
-        for module in self.modules:
-            print("Module Button hinzugefügt::", module)
-            self.add_sidebar_button(self.sidebar_layout, module.name, module.icon_path, self.change_view)
+        structure = self
 
-    def add_sidebar_button(self, layout, text, icon_path, action):
-        button = QPushButton(text)
-        if icon_path:    
-            button.setIcon(QIcon(icon_path))
-        button.clicked.connect(action)
-        layout.addWidget(button)
 
     def load_workspace_structure(self, project):
         try:
