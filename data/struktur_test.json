@@ -1,0 +1,23 @@
+"open_instances": [
+    {   
+        {
+            "type": "module",
+            "name": "PromptCollection",
+            "instance_id": "1",
+            "position": [0, 0]
+        }
+        {
+            "type": "module",
+            "name": "PromptCreator",
+            "instance_id": "3",
+            "position": [1, 0]
+        },
+        {
+            "type": "module",
+            "name": "PromptCreator",
+            "instance_id": "4",
+            "position": [1, 1]
+        }
+            
+    }
+]

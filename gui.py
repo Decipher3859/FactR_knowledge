@@ -4,7 +4,7 @@ import json
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QMainWindow, QTextEdit, QTextBrowser, QVBoxLayout, QHBoxLayout, 
-    QWidget, QStackedWidget, QAction, QFileDialog, QMessageBox, QMenu, QMenuBar, QToolBar, QSplitter,
+    QWidget, QStackedWidget, QAction, QFileDialog, QMessageBox, QMenu, QMenuBar, QToolBar, QSplitter, QTreeWidget, QTreeWidgetItem,
     QLabel, QPushButton, QSpacerItem, QSizePolicy, QDockWidget, QInputDialog, QDialog, QDialogButtonBox, QLineEdit
 
 )
@@ -89,34 +89,6 @@ class MainWindow(QMainWindow):
             
             self.module_buttons[module_name] = action
 
-    def open_insert_menu(self, module_name):
-        menu = QMenu()
-        
-        file_path = os.path.join(self.project.project_dir, f"{self.project.project_name}.proj")
-        with open(file_path, "r", encoding="utf-8") as f:
-                project_data = json.load(f)
-
-                structure = project_data["open_instances"]
-                first_row = structure[0]["children"] if structure and structure[0]["type"] == "split" else []
-
-                num_slots = len(first_row) + 1
-
-                for index in range(num_slots):
-                    action = QAction(f"Slot {index + 1}", self)
-                    action.triggered.connect(lambda checked, idx=index: self.insert_module_at(idx, module_name))
-                    menu.addAction(action)
-
-        button_pos = self.sender().parentWidget().mapToGlobal(self.sender().parentWidget().pos())
-        menu.exec_(button_pos)
-
-    def insert_module_at(self, index, module_name):
-        print(f"Modul {module_name} an Position {index} einfügen")
-        
-        
-
-
-        structure = self
-
 
     def load_workspace_structure(self, project):
         try:
@@ -131,11 +103,14 @@ class MainWindow(QMainWindow):
                 workspace_structure = project_data.get("open_instances", None)
                 if workspace_structure:
                     if isinstance(workspace_structure, list):
-                        for dictionary in workspace_structure:
-                            if isinstance(dictionary, dict):
-                                self.workspace.add_from_structure(dictionary)
-                            else:
-                                print("Ein Element in der Liste ist kein gültiges Dictionary.")
+                        for module_info in workspace_structure:
+                            if module_info.get("type") == "module":
+                                module = self.module_manager.add_instance(
+                                    module_info["name"],
+                                    module_info["instance_id"]
+                                )
+                                position = module_info["position"]
+                                self.workspace.add_from_structure(position, module)
                     else:
                         print("Liste ist kein gültiges Format.")
                 else:
@@ -170,61 +145,46 @@ class SplitContainer(QWidget):
     def find_children(self):
         return [self.splitter.widget(i) for i in range(self.splitter.count())]  
     
-    def add_from_structure(self, structure_dict):
-        if isinstance(structure_dict, dict):
-            if structure_dict["type"] == "split":
-                print("instanzieren eines neuen SplitContainers mit der Orientierung:", structure_dict["orientation"])
-                child_split = SplitContainer(Qt.Orientation(structure_dict["orientation"]), self.module_manager)
-                print("Füge einen neuen SplitContainer hinzu")
-                self.add_split(child_split)
-                print("")
-                for child in structure_dict["children"]:
-                    print("")
-                    child_split.add_from_structure(child)
-                print("")
-                child_split.show()
-                print(f"{child_split} hinzugefügt. - Sichtbar:{child_split.isVisible()}")
-            elif structure_dict["type"] == "module":
-                module = self.module_manager.add_instance(
-                    structure_dict["name"],
-                    structure_dict["instance_id"]
-                )
-                self.add_module(module)
-                print(f"Struktur hinzugefügt: {structure_dict}")
-                print(f"Modul {module} hinzugefügt. - Sichtbar:{module.isVisible()}")
 
-                print("")
-                if len(self.splitter.children()) == 1:
-                    print("")
-                    self.splitter.setStretchFactor(0, 1)
-                    print("")
-                    self.splitter.setSizes([1000])     
-                    print("")
-            self.splitter.setSizes([500, 500])
-            
+    def add_from_structure(self, position, module):
+        if not position:
+            self.add_module(module)
+            return
+        
+        index = position[0]
+        remaining_position = position[1:]
+
+        if self.splitter.count() <= index:
+            new_split = SplitContainer(Qt.Horizontal if len(position) % 2 == 0 else Qt.Vertical, self.module_manager)
+            self.splitter.insertWidget(index, new_split)
         else:
-            print("Struktur ist kein gültiges Dictionary.")
-
-
-    def to_structure(self):
-        children = []
-        for module in self.find_children():
-            if isinstance(module, SplitContainer):
-                children.append(module.to_structure())
+            widget = self.splitter.widget(index)
+            if not isinstance(widget, SplitContainer):
+                new_split = SplitContainer(Qt.Horizontal if len(position) % 2 == 0 else Qt.Vertical, self.module_manager)
+                self.splitter.insertWidget(index, new_split)
             else:
-                module_data = {
-                    "type": "module",
-                    "name": module.name,
-                    "instance_id": module.instance_id,
-                    "position": module.position
-                }
-                children.append(module_data)
-        return {
-            "type": "split",
-            "orientation": self.orientation(),
-            "children": children
-        }
+                new_split = widget
+        new_split.add_from_structure(remaining_position, module)
     
+    def to_structure(self, current_path=None):
+        if current_path is None:
+            current_path = []
+
+        structure = []
+
+        for i in range(self.splitter.count()):
+            instance = self.splitter.widget(i)
+            if isinstance(instance, SplitContainer):
+                structure.extend(instance.to_structure(current_path + [i]))
+            else:
+                structure.append({
+                    "type": "module",
+                    "name": instance.name,
+                    "instance_id": instance.instance_id,
+                    "position": current_path + [i]
+                })
+        return structure
+
     @staticmethod
     def from_dict(self, data):
         if data["type"] != "split":
@@ -272,8 +232,63 @@ class SplitContainer(QWidget):
                 })
         
         return container_dict
-    
-  
+
+class InsertModuleMenu(QTreeWidget):
+    def __init__(self, open_instances, parent=None):
+        super().__init__(parent)
+        self.setHeaderLabel("Modulstruktur einfügen")
+        self.build_menu(open_instances)
+
+    def build_menu(self, instances):
+        for instance in instances:
+            if instance["type"] == "module":
+                self.add_module(instance["position"], instance["name"], instance["instance_id"])
+
+    def add_module(self, position, name, instance_id):
+        current_item = self
+
+        for idx in position:
+            child = None
+
+            # Bestehendes Kind suchen
+            if isinstance(current_item, QTreeWidget):
+                for i in range(current_item.topLevelItemCount()):
+                    item = current_item.topLevelItem(i)
+                    if int(item.text(0)) == idx:
+                        child = item
+                        break
+            else:
+                for i in range(current_item.childCount()):
+                    item = current_item.child(i)
+                    if int(item.text(0)) == idx:
+                        child = item
+                        break
+
+            # Wenn nicht gefunden, neues Item erstellen
+            if not child:
+                child = QTreeWidgetItem()
+                child.setText(0, str(idx))
+                if isinstance(current_item, QTreeWidget):
+                    current_item.addTopLevelItem(child)
+                else:
+                    current_item.addChild(child)
+
+            current_item = child
+
+        # Modul selbst hinzufügen
+        module_item = QTreeWidgetItem()
+        module_item.setText(0, f"Modul: {name} (ID: {instance_id})")
+        current_item.addChild(module_item)
+
+        # Platzhalter für neue Zeile und neue Spalte hinzufügen
+        add_row = QTreeWidgetItem()
+        add_row.setText(0, "[+] Neuer Slot")
+        current_item.addChild(add_row)
+
+        add_col = QTreeWidgetItem()
+        add_col.setText(0, "[+] Neue Spalte")
+        current_item.addChild(add_col)
+
 
 class CreateProjectDialog(QDialog):
     def __init__(self, parent=None):
