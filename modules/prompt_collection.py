@@ -21,6 +21,8 @@ class PromptCollection(QWidget):
 
         self.setup_ui()
         print("setup_ui() wurde aufgerufen.")
+
+        self.table.itemSelectionChanged.connect(self.update_reference)
         
 
     def setup_ui(self):
@@ -31,7 +33,7 @@ class PromptCollection(QWidget):
         self.table.setRowCount(0)
         self.table.setColumnCount(4)
 
-        self.table.setHorizontalHeaderLabels(["Kategorie", "Pos", "Inhalt", "Quelle"])
+        self.table.setHorizontalHeaderLabels(["ID", "Pos", "Inhalt", "Quelle"])
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
 
@@ -51,14 +53,14 @@ class PromptCollection(QWidget):
         prompts = self.db.get_all_prompts()
 
         for prompt in prompts:
-            _, content, tag, source, local_id, _, = prompt
-            self.add_row(content, tag, str(local_id), source)
+            id, content, _, source, local_id, _, = prompt
+            self.add_row(id, str(local_id), content, source)
 
-    def add_row(self, tag, local_id, content, source):
+    def add_row(self, id, local_id, content, source):
         row_position = self.table.rowCount()
         self.table.insertRow(row_position)
 
-        self.table.setItem(row_position, 0, QTableWidgetItem(tag))
+        self.table.setItem(row_position, 0, QTableWidgetItem(str(id)))
         self.table.setItem(row_position, 1, QTableWidgetItem(local_id))
 
         item = QTableWidgetItem(content)
@@ -66,7 +68,7 @@ class PromptCollection(QWidget):
         item.setTextAlignment(Qt.AlignTop | Qt.AlignLeft)
         self.table.setItem(row_position, 2, item)
 
-        self.table.setItem(row_position, 3, QTableWidgetItem(source))
+        self.table.setItem(row_position, 3, QTableWidgetItem(str(source)))
 
         font_metrics = QFontMetrics(self.table.font())
         text_width = self.table.columnWidth(2)
@@ -79,6 +81,24 @@ class PromptCollection(QWidget):
 
         self.table.setRowHeight(row_position, visible_lines * line_height + 6)
 
+    def update_reference(self):
+        selected_items = self.table.selectedItems()
+        if not selected_items:
+            return
+        
+        row = selected_items[0].row()
+        id = self.table.item(row, 0).text()
+        local_id = self.table.item(row, 1).text()
+        content = self.table.item(row, 2).text()
+        source = self.table.item(row, 3).text()
+        
+        reference_data = {
+            "id": id,
+            "local_id": local_id,
+            "content": content,
+            "source": source
+        }
+        self.controller.set_current_reference(reference_data)
 
     @property
     def name(self):

@@ -1,12 +1,12 @@
+import os
+import re
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QComboBox, QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QSizePolicy, QRadioButton
 )
 from PyQt5.QtGui import QFontMetrics
 from PyQt5.QtCore import Qt
 from patterns import *
 from modules.tag_manager import *
-import os
-import re
 
 class PromptCreator(QWidget):
     def __init__(self, module_manager, controller, instance_id=None, position=None):
@@ -21,28 +21,61 @@ class PromptCreator(QWidget):
         self.project = self.controller.get_project()
         self.db = self.controller.db_manager
 
+        self.controller.reference_changes.connect(self.update_reference_display)
+        self.controller.relation_type_added.connect(self.update_relation_type_buttons)
+
         self.setup_ui()
-        print("setup_ui() wurde aufgerufen.")
 
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
-    
-        print("Größe vor dem Setzen:", self.size())
         self.setMinimumSize(500, 300)
-        print("Größe nach dem Setzen:", self.size())
-        self.setStyleSheet("background-color: lightgray;")
 
-        DEBUG_LABEL  = QLabel(f"Prompt Creator sichtbar: {self.instance_id}")
-        self.layout.addWidget(DEBUG_LABEL)
+        self.reference_label = QLabel("Referenz:")
+        self.reference_label.setAlignment(Qt.AlignLeft)
+        self.reference_label.setFixedHeight(30)
+        self.reference_label.setStyleSheet("font-weight: bold; color: #333; padding: 4px;")
+        self.layout.addWidget(self.reference_label)
 
         self.input_field = QTextEdit()
         self.input_field.setPlaceholderText("Eigene Aussage, Gedanke, These hier eingeben...")
-        self.input_field.setFixedHeight(60)
-        self.layout.addWidget(self.input_field)
+        self.input_field.setStyleSheet("font-size:14px; padding 6px;")
+        self.input_field.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        input_wrapper = QWidget()
+        input_wrapper_layout = QVBoxLayout(input_wrapper)
+        input_wrapper_layout.setContentsMargins(0, 0, 0, 0)
+        input_wrapper_layout.addWidget(self.input_field)
+        input_wrapper.setFixedHeight(self.height() // 2)
+
+        self.layout.addWidget(input_wrapper)
+
+        self.add_relation_type_button = QPushButton("Beziehungstyp hinzufügen")
+        self.add_relation_type_button.clicked.connect(self.controller.show_add_relation_type_dialog)
+        self.layout.addWidget(self.add_relation_type_button)
+
+        self.relation_type_group = QVBoxLayout()
+        self.layout.addLayout(self.relation_type_group)
 
         tag_button_layout = QHBoxLayout()
 
         self.prompt_button = QPushButton("Prompt hinzufügen")
+        self.prompt_button.setFixedWidth(150)
+        self.prompt_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                padding: 8px, 16px;
+                font-size: 16px;
+                border: none;
+                border-radius: 4px;
+                }
+            QPushButton:hover {
+                background-color: #45a049;
+                }
+            QPushButton:pressed {
+                background-color: #3e8e41;
+                }
+            """)
 
         tag_button_layout.addWidget(self.prompt_button)
 
@@ -53,10 +86,32 @@ class PromptCreator(QWidget):
         self.setLayout(self.layout)
 
         self.input_field.clear()
-
-        self.tag_manager = TagManager(self.input_field.toPlainText(), self.project)
+        self.update_relation_type_buttons()
 
         return self
+    
+    def update_reference_display(self, reference_data):
+        self.reference_label.setText(f"Referenz: {reference_data['content']}")
+    
+    def update_relation_type_buttons(self):
+        for i in reversed(range(self.relation_type_group.count())):
+            widget = self.relation_type_group.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+        
+        self.selected_relation_type_id = None
+
+        relation_types = self.controller.db_manager.get_relation_types()
+        for relation in relation_types:
+            radio_button = QRadioButton(f"{relation['name']}")
+            radio_button.relation_type_id = relation['id']
+            radio_button.toggled.connect(self.on_relation_type_selected)
+            self.relation_type_group.addWidget(radio_button)
+
+    def on_relation_type_selected(self):
+        radio = self.sender()
+        if radio.isChecked():
+                self.selected_relation_type_id = radio.relation_type_id
 
     def add_prompt(self, tag):
         text = self.input_field.toPlainText().strip()
@@ -65,11 +120,22 @@ class PromptCreator(QWidget):
         
         source_id = 0
 
-        self.controller.db_manager.create_prompt(
+        prompt_id = self.controller.db_manager.create_prompt(
             content=text,
             tag=tag,
             source_id=source_id,
         )
+
+        print("Controller Referenz: ", self.controller.get_current_reference())
+        reference = self.controller.get_current_reference()
+        if reference and self.selected_relation_type_id is not None:
+            print("Reference ID: ", reference['id'])
+            print("Prompt ID: ", prompt_id)
+            self.controller.db_manager.add_prompt_relation(
+                prompt_a_id = reference['id'],
+                prompt_b_id = prompt_id,
+                relation_type_id = self.selected_relation_type_id
+            )
 
         self.input_field.clear()
 

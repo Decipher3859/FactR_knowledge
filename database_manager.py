@@ -84,9 +84,21 @@ class DatabaseManager(QObject):
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS prompts_relations (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                parent_id INT NOT NULL,
-                child_id INT NOT NULL,
-                relation_type VARCHAR(50) NOT NULL
+                source_prompt_id INT NOT NULL,
+                target_prompt_id INT NOT NULL,
+                relation_type_id INT NOT NULL,
+                FOREIGN KEY (source_prompt_id) REFERENCES prompts(id),
+                FOREIGN KEY (target_prompt_id) REFERENCES prompts(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS relation_types (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(50) NOT NULL,
+                hierarchy_level INT NOT NULL DEFAULT 0,
+                description TEXT
             )
         ''')
 
@@ -135,14 +147,87 @@ class DatabaseManager(QObject):
                 INSERT INTO prompts (content, tag, source_id, local_id)
                 VALUES (%s, %s, %s, %s)
             ''', (content, tag, source_id, local_id))
+
+            prompt_id = cursor.lastrowid
+
             connection.commit()
 
             cursor.close()
             connection.close()
 
             self.prompt_added.emit()
+
+            return prompt_id
+        
         except mysql.connector.Error as err:
             print(f"[DB] Fehler beim Erstellen des Prompts: {err}")
+
+    def add_prompt_relation(self, prompt_a_id, prompt_b_id, relation_type_id):
+        connection = self.connect()
+        cursor = connection.cursor()
+
+
+        print("IDS: ", prompt_a_id, prompt_b_id, relation_type_id)
+        cursor.execute('''
+            SELECT id, hierarchy_level
+            FROM relation_types
+            WHERE id = %s
+        ''', (relation_type_id,))
+        print("Beziehungstyp wurde ausgewählt: ", relation_type_id)
+        result = cursor.fetchone()
+
+        if not result:
+            cursor.close()
+            connection.close()
+
+            raise ValueError(f"Relation type '{relation_type_id}' not found in the database.")
+        
+        relation_type_id, hierarchy_level = result
+        print("Ergebnis: ", result)
+
+        if hierarchy_level == 1:
+            print("Hierarchie-Level 1: ", prompt_a_id, prompt_b_id)
+            source_id, target_id = prompt_a_id, prompt_b_id
+        else:
+            print("Hierarchie-Level 2: ", prompt_a_id, prompt_b_id)
+            source_id, target_id = sorted((prompt_b_id, prompt_a_id))
+        cursor.execute('''
+            INSERT INTO prompts_relations (source_prompt_id, target_prompt_id, relation_type_id)
+            VALUES (%s, %s, %s)
+        ''', (source_id, target_id, relation_type_id))
+
+        connection.commit()
+        print("Beziehung wurde in Datenbank eingetragen.")
+        cursor.close()
+        connection.close()
+
+    def get_prompt_relations(self, prompt_id, direction='both'):
+        query = '''
+            SELECT source_prompt_id, target_prompt_id, relation_type, hierarchy_level
+            FROM prompts_relations
+            WHERE {condition}
+        '''
+
+        if direction == 'source':
+            condition = 'source_prompt_id = %s'
+            params = (prompt_id,)
+        elif direction == 'target':
+            condition = 'target_prompt_id = %s'
+            params = (prompt_id,)
+        else:
+            condition = 'source_prompt_id = %s OR target_prompt_id = %s'
+            params = (prompt_id, prompt_id)
+        
+        connection = self.connect()
+        cursor = connection.cursor()
+
+        cursor.execute(query.format(condition=condition), params)
+        relations = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+
+        return relations
 
     def get_all_prompts(self):
         connection = self.connect()
@@ -163,18 +248,33 @@ class DatabaseManager(QObject):
         )
         return result[0] + 1 if result[0] is not None else 1
 
-    def create_relation(self, parent_id, child_id, relation_type):
+    def add_relation_type(self, name, description, hierarchy_level):
         connection = self.connect()
         cursor = connection.cursor()
 
         cursor.execute('''
-            INSERT INTO prompts_relations (parent_id, child_id, relation_type)
+            INSERT INTO relation_types (name, description, hierarchy_level)
             VALUES (%s, %s, %s)
-        ''')
+        ''', (name, description, hierarchy_level))
         connection.commit()
 
         cursor.close()
         connection.close()
+
+    def get_relation_types(self):
+        connection = self.connect()
+        cursor = connection.cursor()
+
+        cursor.execute('''SELECT * FROM relation_types''')
+
+        relation_types = cursor.fetchall()
+
+        row = [{'id': r[0], 'name': r[1], 'description': r[2], 'hierarchy_level': r[3]} for r in relation_types]
+
+        cursor.close()
+        connection.close()
+
+        return row
 
     def fetchone(self, query, params=None):
         connection = self.connect()

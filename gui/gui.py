@@ -3,18 +3,14 @@ import json
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QMainWindow, QTextEdit, QTextBrowser, QVBoxLayout, QHBoxLayout, 
-    QWidget, QStackedWidget, QAction, QFileDialog, QMessageBox, QMenu, QMenuBar, QToolBar, QSplitter, QTreeWidget, QTreeWidgetItem,
-    QLabel, QPushButton, QSpacerItem, QSizePolicy, QDockWidget, QInputDialog, QDialog, QDialogButtonBox, QLineEdit
-
+    QMainWindow, QTextEdit, QTextBrowser, QVBoxLayout, QHBoxLayout, QSplitter, QTreeWidget, QTreeWidgetItem,
+    QWidget, QStackedWidget, QAction, QMenu, QMenuBar, QToolBar, QDockWidget,
+    QLabel, QPushButton, QSpacerItem, QSizePolicy, QRadioButton, QLineEdit,
+    QFileDialog, QInputDialog, QDialog, QDialogButtonBox, QMessageBox
 )
-from PyQt5.QtGui import QIcon
-from modules.prompt_creator import PromptCreator
-from modules.prompt_collection import PromptCollection
-from modules.source_analyzer import SourceAnalyzer
+from gui.create_project_dialog import *
+from gui.add_relation_type_dialog import *
 from modules.layout_templates import *
-
-
 
 class MainWindow(QMainWindow):
     def __init__(self, controller):
@@ -76,15 +72,9 @@ class MainWindow(QMainWindow):
 
     def setup_module_buttons(self):
         self.module_buttons = {}
-        print("Module werden geladen")
         for module_name in self.module_manager.get_available_modules():
-            print("Module: ", module_name)
-            print("Action wird erstellt")
             action = QAction(module_name, self)
-            print("Action: ", action)
-            print("Trigger wird gesetzt")
-            action.triggered.connect(lambda checked, name=module_name: self.open_insert_menu(name))
-            print("Action wird zur Toolbar hinzugefügt")
+            # action.triggered.connect(lambda checked, name=module_name: self.open_insert_menu(name))
             self.toolbar.addAction(action)
             
             self.module_buttons[module_name] = action
@@ -117,6 +107,13 @@ class MainWindow(QMainWindow):
                     print("Keine Struktur für den Arbeitsbereich gefunden.")
         except FileNotFoundError:
             print("Projektdatei nicht gefunden.")
+
+    def show_add_relation_type_dialog(self):
+        dialog = AddRelationTypeDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            name, description, hierarchy_level = dialog.get_data()
+            self.controller.add_relation_type(name, description, hierarchy_level)
+    
 
 class SplitContainer(QWidget):
     def __init__(self, orientation=Qt.Vertical, module_manager=None):
@@ -290,27 +287,9 @@ class InsertModuleMenu(QTreeWidget):
         current_item.addChild(add_col)
 
 
-class CreateProjectDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Neues Projekt erstellen")
 
-        self.layout = QVBoxLayout(self)
 
-        self.project_name_label = QLabel("Projektname")
-        self.layout.addWidget(self.project_name_label)
 
-        self.project_name_input = QLineEdit(self)
-        self.layout.addWidget(self.project_name_input)
-
-        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        self.layout.addWidget(self.button_box)
-
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
-
-    def get_project_name(self):
-        return self. project_name_input.text()
 
         
 
