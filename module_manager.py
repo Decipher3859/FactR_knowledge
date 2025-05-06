@@ -4,7 +4,6 @@ from modules.prompt_creator import PromptCreator
 
 class ModuleManager:
     def __init__(self, controller):
-        print("ModuleManager initialized")
         self.controller = controller
         self.modules = {}
         self.available_modules = {
@@ -28,7 +27,6 @@ class ModuleManager:
 
 
     def create_instance(self, name, *args, **kwargs):
-        print("Creating instance of module:", name)
         cls = self.available_modules.get(name)
         if cls is None:
             raise ValueError(f"Module '{name}' is not available.")
@@ -49,4 +47,14 @@ class ModuleManager:
     
     def get_available_modules(self):
         return list(self.available_modules.keys())
+    
+    def clear_instances(self):
+        for name, instances in self.instances.items():
+            for instance in instances.values():
+                if hasattr(instance, "close"):
+                    instance.close()
+                elif hasattr(instance, "cleanup"):
+                    instance.cleanup()
+        self.instances.clear()
+        self.modules.clear()
 

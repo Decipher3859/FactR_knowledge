@@ -28,32 +28,33 @@ class Controller(QObject):
     def start_application(self):
         self.main_window.show()
         if self.load_last_project():
-            print("load_last_project(): ", self.load_last_project())
             db_conf = self.project_manager.database
-            print("db_conf: ", db_conf)
             self.db_manager = DatabaseManager(**db_conf)
             self.main_window.load_workspace_structure(self.project_manager.get_project())
-            print("Module Buttons werden gesetzt")
             self.main_window.setup_module_buttons()
             self.main_window.setWindowTitle(self.project_manager.get_project().project_name)
         else:
             self.main_window.show_create_project_dialog()
 
     def initialize_project(self, project_name):
+        self.module_manager.clear_instances()
         project = self.project_manager.create_project(project_name)
         db_config = project.database
+
+        project.set_last_project()
+    
         self.db_manager = DatabaseManager(**db_config)
         self.db_manager.create_database()
         self.db_manager.create_tables()
 
         self.main_window.load_workspace_structure(self.project_manager.get_project())
-        print("Module Buttons werden gesetzt")
         self.main_window.setup_module_buttons()
         self.main_window.setWindowTitle(project_name)
     
     def load_project(self, project_name):
         self.project_manager.load_project(project_name)
         self.project = self.project_manager.get_project()
+        self.project.set_last_project(project_name)
         self.db_manager = DatabaseManager(**self.project.database)
         self.main_window.setWindowTitle(project_name)
 

@@ -14,18 +14,14 @@ class DatabaseManager(QObject):
         self.database = database
 
     def create_database(self):
-        print("DBManager.crete_database() wird aufgerufen.")
         connection = self.connect(include_database=False)
         if not connection:
-            print("[DB] Verbindung fehlgeschlagen -keine DB erstellt.")
             return
         
         cursor = connection.cursor()
 
-        print("CREATE DATABASE: ", self.database)
         try:
             cursor.execute(f"CREATE DATABASE IF NOT EXISTS {self.database}")
-            print(f"[DB] Datenbank wurde erstellt oder exisiterte bereits.")
         except mysql.connector.Error as err:
             print(f"[DB] Fehler beim Erstellen der DB: {err}")
         finally:

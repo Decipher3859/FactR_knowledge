@@ -45,22 +45,16 @@ class ProjectManager:
             ],
             "open_instances": [
                 {
-                    "type": "split",
-                    "orientation": 2,
-                    "children": [
-                        {
-                            "type": "module",
-                            "name": "PromptCollection",
-                            "instance_id": "1",
-                            "position": 0
-                        },
-                        {
-                            "type": "module",
-                            "name": "PromptCreator",
-                            "instance_id": "2",
-                            "position": 1
-                        }
-                    ]
+                    "type": "module",
+                    "name": "PromptCollection",
+                    "instance_id": "1",
+                    "position": [0, 0, 0]
+                },
+                {
+                    "type": "module",
+                    "name": "PromptCreator",
+                    "instance_id": "2",
+                    "position": [0, 1, 0]
                 }
             ]
         }
