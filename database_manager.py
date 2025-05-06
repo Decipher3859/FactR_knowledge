@@ -84,11 +84,11 @@ class DatabaseManager(QObject):
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS prompts_relations (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                source_prompt_id INT NOT NULL,
-                target_prompt_id INT NOT NULL,
+                parent_id INT NOT NULL,
+                child_id INT NOT NULL,
                 relation_type_id INT NOT NULL,
-                FOREIGN KEY (source_prompt_id) REFERENCES prompts(id),
-                FOREIGN KEY (target_prompt_id) REFERENCES prompts(id),
+                FOREIGN KEY (parent_id) REFERENCES prompts(id),
+                FOREIGN KEY (child_id) REFERENCES prompts(id),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -192,7 +192,7 @@ class DatabaseManager(QObject):
             print("Hierarchie-Level 2: ", prompt_a_id, prompt_b_id)
             source_id, target_id = sorted((prompt_b_id, prompt_a_id))
         cursor.execute('''
-            INSERT INTO prompts_relations (source_prompt_id, target_prompt_id, relation_type_id)
+            INSERT INTO prompts_relations (parent_id, child_id, relation_type_id)
             VALUES (%s, %s, %s)
         ''', (source_id, target_id, relation_type_id))
 
@@ -203,19 +203,19 @@ class DatabaseManager(QObject):
 
     def get_prompt_relations(self, prompt_id, direction='both'):
         query = '''
-            SELECT source_prompt_id, target_prompt_id, relation_type, hierarchy_level
+            SELECT parent_id, child_id, relation_type, hierarchy_level
             FROM prompts_relations
             WHERE {condition}
         '''
 
-        if direction == 'source':
-            condition = 'source_prompt_id = %s'
+        if direction == 'parent':
+            condition = 'parent_id = %s'
             params = (prompt_id,)
-        elif direction == 'target':
-            condition = 'target_prompt_id = %s'
+        elif direction == 'child':
+            condition = 'child_id = %s'
             params = (prompt_id,)
         else:
-            condition = 'source_prompt_id = %s OR target_prompt_id = %s'
+            condition = 'parent_id = %s OR child_id = %s'
             params = (prompt_id, prompt_id)
         
         connection = self.connect()
@@ -240,6 +240,79 @@ class DatabaseManager(QObject):
         connection.close()
 
         return prompts
+    
+    def get_root_prompts(self):
+        connection = self.connect()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute('''
+            SELECT * FROM prompts
+            WHERE id NOT IN (
+                SELECT child_id
+                FROM prompts_relations
+                JOIN relation_types ON prompts_relations.relation_type_id = relation_types.id
+                WHERE relation_types.hierarchy_level = 1
+            )
+        ''')
+
+        prompts = cursor.fetchall()
+        cursor.close()
+        connection.close()
+
+        return prompts
+
+    def get_prompt_tree(self, root_ids=None, visited=None):
+        if visited is None:
+            visited = set()
+        if root_ids is None:
+            root_prompts = self.get_top_level_prompts()
+            root_ids = [prompt['id'] for prompt in root_prompts]
+        
+        tree = []
+        for prompt_id in root_ids:
+            if prompt_id in visited:
+                continue
+            visited.add(prompt_id)
+
+            prompt = self.get_prompt_by_id(prompt_id)
+            children = self.get_direct_children(prompt_id)
+            subtree = self.get_prompt_tree(children, visited)
+            tree.append({'prompt': prompt, 'children': subtree})
+    
+        return tree
+
+    def get_direct_children(self, parent_id):
+        connection = self.connect()
+        cursor = connection.cursor(dictionary=True)
+
+        query = '''
+            SELECT p.*,
+                   t.name AS relation_name 
+            FROM prompts_relations r
+            JOIN prompts p ON p.id = r.child_id
+            JOIN relation_types t ON r.relation_type_id = t.id
+            WHERE r.parent_id = %s
+            AND t.hierarchy_level = 1
+        '''
+        cursor.execute(query, (parent_id,))
+        results = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+        print("Query: ", results)
+        return results
+    
+    def get_prompt_by_id(self, prompt_id):
+        connection = self.connect()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute('SELECT * FROM prompts WHERE id = %s', (prompt_id,))
+        prompt = cursor.fetchone()
+
+        cursor.close()
+        connection.close()
+
+        return prompt
     
     def get_next_local_id(self, source_id):
         result = self.fetchone(

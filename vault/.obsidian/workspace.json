@@ -25,14 +25,10 @@
             "id": "88552015d523cd47",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "offene Aufgaben.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "offene Aufgaben"
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graphansicht"
             }
           }
         ],
@@ -185,9 +181,9 @@
   },
   "active": "88552015d523cd47",
   "lastOpenFiles": [
+    "offene Aufgaben.md",
     "2025-04-25_Aktueller Stand.md",
     "XCOM2.md",
-    "Definition des Prototyps.md",
-    "offene Aufgaben.md"
+    "Definition des Prototyps.md"
   ]
 }

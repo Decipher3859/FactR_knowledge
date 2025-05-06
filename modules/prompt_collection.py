@@ -1,8 +1,9 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLabel
+    QWidget, QVBoxLayout,QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QTreeWidget, QTreeWidgetItem,
+    QSizePolicy, 
 )
-from PyQt5.QtGui import QFontMetrics
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont, QFontMetrics, QColor, QPainter, QBrush
+from PyQt5.QtCore import Qt, QSize
 import os
 from patterns import *
 
@@ -22,64 +23,52 @@ class PromptCollection(QWidget):
         self.setup_ui()
         print("setup_ui() wurde aufgerufen.")
 
-        self.table.itemSelectionChanged.connect(self.update_reference)
+        # self.table.itemSelectionChanged.connect(self.update_reference)
         
 
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
 
-        self.layout.addWidget(QLabel("Prompt Collection sichtbar"))
-        self.table = QTableWidget()
-        self.table.setRowCount(0)
-        self.table.setColumnCount(4)
+        self.tree = QTreeWidget()
+        self.tree.setColumnCount(1)
+        self.tree.setHeaderLabels(["Prompt Hierarchy"])
+        self.layout.addWidget(self.tree)
 
-        self.table.setHorizontalHeaderLabels(["ID", "Pos", "Inhalt", "Quelle"])
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-
-        self.table.setSortingEnabled(True)
-
-        self.layout.addWidget(self.table)
         self.setLayout(self.layout)
         
-        self.refresh_prompt_table()
-        self.db.prompt_added.connect(self.refresh_prompt_table)
+        self.refresh_prompt_tree()
+        self.db.prompt_added.connect(self.refresh_prompt_tree)
         
         return self
 
-    def refresh_prompt_table(self):
-        print("refresh_prompt_table() wird aufgerufen.")
-        self.table.setRowCount(0)
-        prompts = self.db.get_all_prompts()
+    def refresh_prompt_tree(self):
+        self.tree.clear()
+        root_prompts = self.db.get_root_prompts()
+        for prompt in root_prompts:
+            self.add_prompt_item(prompt)
 
-        for prompt in prompts:
-            id, content, _, source, local_id, _, = prompt
-            self.add_row(id, str(local_id), content, source)
+    def add_prompt_item(self, prompt, parent_item=None):
+        relation_name = prompt.get('relation_name', "UNKNOWN").upper()
 
-    def add_row(self, id, local_id, content, source):
-        row_position = self.table.rowCount()
-        self.table.insertRow(row_position)
+        item = QTreeWidgetItem()
+        item.setData(0, Qt.UserRole, prompt)
 
-        self.table.setItem(row_position, 0, QTableWidgetItem(str(id)))
-        self.table.setItem(row_position, 1, QTableWidgetItem(local_id))
+        widget = PromptItemWidget(relation_name, prompt['content'])
 
-        item = QTableWidgetItem(content)
-        item.setToolTip(content)
-        item.setTextAlignment(Qt.AlignTop | Qt.AlignLeft)
-        self.table.setItem(row_position, 2, item)
+        if parent_item is None:
+            self.tree.addTopLevelItem(item)
+        else:
+            parent_item.addChild(item)
 
-        self.table.setItem(row_position, 3, QTableWidgetItem(str(source)))
+        self.tree.setItemWidget(item, 0, widget)
 
-        font_metrics = QFontMetrics(self.table.font())
-        text_width = self.table.columnWidth(2)
+        self.add_children_to_item(item, prompt['id'])
 
-        bounding_rect = font_metrics.boundingRect(0, 0, text_width, 0, Qt.TextWordWrap, content)
-        line_height = font_metrics.lineSpacing()
 
-        required_lines = max(1, bounding_rect.height() // line_height)
-        visible_lines = min(required_lines, 3)
-
-        self.table.setRowHeight(row_position, visible_lines * line_height + 6)
+    def add_children_to_item(self, parent_item, parent_id):
+        children = self.db.get_direct_children(parent_id)
+        for child_prompt in children:
+            self.add_prompt_item(child_prompt, parent_item)
 
     def update_reference(self):
         selected_items = self.table.selectedItems()
@@ -111,3 +100,22 @@ class PromptCollection(QWidget):
             "position": self.position,
             "icon_path": self.icon_path
         }
+
+class PromptItemWidget(QWidget):
+    def __init__(self, relation_name, content):
+        super().__init__()
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        if relation_name != "UNKNOWN":
+            label = QLabel(f"[{relation_name}]")
+            label.setStyleSheet("background-color: #404040; color: white; font-weight: bold; padding: 1px 4px;")
+            label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+            label.adjustSize()
+            layout.addWidget(label)
+
+        content_label = QLabel(content)
+        layout.addWidget(content_label)
+
+        self.setLayout(layout)
+
