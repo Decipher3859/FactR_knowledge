@@ -19,8 +19,7 @@ class Controller(QObject):
         self.db_manager = None
         
         self.module_manager = ModuleManager(self)
-        print("ModuleManager im Controller: ", self.module_manager)
-
+        
         self.main_window = MainWindow(self)
 
         self.current_reference = None
