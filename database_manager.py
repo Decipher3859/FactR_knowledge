@@ -70,7 +70,7 @@ class DatabaseManager(QObject):
             CREATE TABLE IF NOT EXISTS prompts (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 content TEXT NOT NULL,
-                tag VARCHAR(50) NOT NULL,
+                tag VARCHAR(50) NULL,
                 source_id INT,
                 local_id INT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -98,6 +98,35 @@ class DatabaseManager(QObject):
             )
         ''')
 
+        connection.commit()
+
+        cursor.close()
+        connection.close()
+
+    def ensure_default_relation_types(self):
+        default_types = [
+            ["Argument", 1],
+            ["Gegenargument", 1],
+            ["Indiz", 1],
+            ["Frage", 1],
+            ["Antwort", 1],
+            ["Folge", 1]
+        ]
+
+        connection = self.connect()
+        cursor = connection.cursor()
+
+        for name, id in default_types:
+            cursor.execute('''
+                SELECT id FROM relation_types WHERE name = %s
+            ''', (name,))
+            exists = cursor.fetchone()
+
+            if not exists:
+                cursor.execute('''
+                    INSERT INTO relation_types (name, hierarchy_level)
+                    VALUES (%s, %s)
+                ''', (name, id))
         connection.commit()
 
         cursor.close()
@@ -132,7 +161,8 @@ class DatabaseManager(QObject):
             print(f"[DB] Fehler beim Abrufen der Quellen: {err}")
             return []
 
-    def create_prompt(self, content, tag, source_id):
+    def create_prompt(self, content, source_id):
+        print("CREATE_PROMPT IN DB MANAGER")
         try:
             connection = self.connect()
             cursor = connection.cursor()
@@ -140,18 +170,16 @@ class DatabaseManager(QObject):
             local_id = self.get_next_local_id(source_id)
 
             cursor.execute('''
-                INSERT INTO prompts (content, tag, source_id, local_id)
-                VALUES (%s, %s, %s, %s)
-            ''', (content, tag, source_id, local_id))
+                INSERT INTO prompts (content, source_id, local_id)
+                VALUES (%s, %s, %s)
+            ''', (content, source_id, local_id))
 
             prompt_id = cursor.lastrowid
-
+            print("LASTROWID: ", prompt_id)
             connection.commit()
 
             cursor.close()
             connection.close()
-
-            self.prompt_added.emit()
 
             return prompt_id
         
@@ -162,14 +190,11 @@ class DatabaseManager(QObject):
         connection = self.connect()
         cursor = connection.cursor()
 
-
-        print("IDS: ", prompt_a_id, prompt_b_id, relation_type_id)
         cursor.execute('''
             SELECT id, hierarchy_level
             FROM relation_types
             WHERE id = %s
         ''', (relation_type_id,))
-        print("Beziehungstyp wurde ausgewählt: ", relation_type_id)
         result = cursor.fetchone()
 
         if not result:
@@ -179,13 +204,10 @@ class DatabaseManager(QObject):
             raise ValueError(f"Relation type '{relation_type_id}' not found in the database.")
         
         relation_type_id, hierarchy_level = result
-        print("Ergebnis: ", result)
 
         if hierarchy_level == 1:
-            print("Hierarchie-Level 1: ", prompt_a_id, prompt_b_id)
             source_id, target_id = prompt_a_id, prompt_b_id
         else:
-            print("Hierarchie-Level 2: ", prompt_a_id, prompt_b_id)
             source_id, target_id = sorted((prompt_b_id, prompt_a_id))
         cursor.execute('''
             INSERT INTO prompts_relations (parent_id, child_id, relation_type_id)
@@ -193,7 +215,6 @@ class DatabaseManager(QObject):
         ''', (source_id, target_id, relation_type_id))
 
         connection.commit()
-        print("Beziehung wurde in Datenbank eingetragen.")
         cursor.close()
         connection.close()
 

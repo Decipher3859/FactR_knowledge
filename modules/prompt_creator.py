@@ -81,7 +81,7 @@ class PromptCreator(QWidget):
 
         self.layout.addLayout(tag_button_layout)
 
-        self.prompt_button.clicked.connect(lambda: self.add_prompt("prmt"))
+        self.prompt_button.clicked.connect(lambda: self.add_prompt())
 
         self.setLayout(self.layout)
 
@@ -113,29 +113,18 @@ class PromptCreator(QWidget):
         if radio.isChecked():
                 self.selected_relation_type_id = radio.relation_type_id
 
-    def add_prompt(self, tag):
-        text = self.input_field.toPlainText().strip()
-        if not text:
+    def add_prompt(self):
+        content = self.input_field.toPlainText().strip()
+        if not content:
             return
         
         source_id = 0
 
-        prompt_id = self.controller.db_manager.create_prompt(
-            content=text,
-            tag=tag,
-            source_id=source_id,
+        self.controller.create_prompt(
+            content = content,
+            source_id = source_id,
+            relation_type_id = self.selected_relation_type_id
         )
-
-        print("Controller Referenz: ", self.controller.get_current_reference())
-        reference = self.controller.get_current_reference()
-        if reference and self.selected_relation_type_id is not None:
-            print("Reference ID: ", reference['id'])
-            print("Prompt ID: ", prompt_id)
-            self.controller.db_manager.add_prompt_relation(
-                prompt_a_id = reference['id'],
-                prompt_b_id = prompt_id,
-                relation_type_id = self.selected_relation_type_id
-            )
 
         self.input_field.clear()
 

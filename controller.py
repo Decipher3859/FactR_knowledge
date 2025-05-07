@@ -11,6 +11,7 @@ from modules.layout_templates import *
 class Controller(QObject):
     reference_changes = pyqtSignal(dict)
     relation_type_added = pyqtSignal()
+    prompt_added = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -46,6 +47,7 @@ class Controller(QObject):
         self.db_manager = DatabaseManager(**db_config)
         self.db_manager.create_database()
         self.db_manager.create_tables()
+        self.db_manager.ensure_default_relation_types()
 
         self.main_window.load_workspace_structure(self.project_manager.get_project())
         self.main_window.setup_module_buttons()
@@ -83,14 +85,21 @@ class Controller(QObject):
 
 
 # Modulverwaltung
-    def set_current_reference(self, prompt_data):
-        self.current_reference = prompt_data
-        self.reference_changes.emit(prompt_data)
-        print("set_current_reference: ", prompt_data)
+    def create_prompt(self, content, source_id, relation_type_id=None):
+        print("Source ID: ", source_id)
+        prompt_id = self.db_manager.create_prompt(content, source_id)
+        print("Prompt_ID in Controller: ", prompt_id)
+        reference = self.get_current_reference()
+        if reference and relation_type_id is not None:
+            self.db_manager.add_prompt_relation(
+                prompt_a_id = reference['id'],
+                prompt_b_id = prompt_id,
+                relation_type_id = relation_type_id
+            )
 
-    def get_current_reference(self):
-        print("get_current_reference: ", self.current_reference)
-        return self.current_reference
+        self.prompt_added.emit()
+        
+        return prompt_id
     
     def show_add_relation_type_dialog(self):
         self.main_window.show_add_relation_type_dialog()
@@ -99,6 +108,13 @@ class Controller(QObject):
         self.db_manager.add_relation_type(name, description, hierarchy_level)
         self.relation_type_added.emit()
 
-        
+    def set_current_reference(self, prompt_data):
+        self.current_reference = prompt_data
+        self.reference_changes.emit(prompt_data)
+        print("set_current_reference: ", prompt_data)
+
+    def get_current_reference(self):
+        print("get_current_reference: ", self.current_reference)
+        return self.current_reference
 
 

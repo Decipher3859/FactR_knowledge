@@ -21,10 +21,8 @@ class PromptCollection(QWidget):
         self.db = controller.db_manager
 
         self.setup_ui()
-        print("setup_ui() wurde aufgerufen.")
 
-        # self.table.itemSelectionChanged.connect(self.update_reference)
-        
+        self.tree.itemClicked.connect(self.update_reference_from_tree)        
 
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
@@ -37,15 +35,19 @@ class PromptCollection(QWidget):
         self.setLayout(self.layout)
         
         self.refresh_prompt_tree()
-        self.db.prompt_added.connect(self.refresh_prompt_tree)
+        self.controller.prompt_added.connect(self.refresh_prompt_tree)
         
         return self
 
     def refresh_prompt_tree(self):
+        expanded_ids = self.get_expanded_prompt_ids()
+        print("EXPANDED IDS: ", expanded_ids)
+
         self.tree.clear()
         root_prompts = self.db.get_root_prompts()
         for prompt in root_prompts:
             self.add_prompt_item(prompt)
+        self.restore_expanded_prompt_ids(expanded_ids)
 
     def add_prompt_item(self, prompt, parent_item=None):
         relation_name = prompt.get('relation_name', "UNKNOWN").upper()
@@ -64,13 +66,41 @@ class PromptCollection(QWidget):
 
         self.add_children_to_item(item, prompt['id'])
 
-
     def add_children_to_item(self, parent_item, parent_id):
         children = self.db.get_direct_children(parent_id)
         for child_prompt in children:
             self.add_prompt_item(child_prompt, parent_item)
 
-    def update_reference(self):
+    def restore_expanded_prompt_ids(self, ids_to_expand):
+        if not ids_to_expand:
+            ids_to_expand = set()
+
+        def recurse(item):
+            if item is None:
+                return
+            prompt = item.data(0, Qt.UserRole)
+            if prompt and prompt.get('id') in ids_to_expand:
+                item.setExpanded(True)
+            for i in range(item.childCount()):
+                recurse(item.child(i))
+        
+        for i in range(self.tree.topLevelItemCount()):
+            recurse(self.tree.topLevelItem(i))
+
+    def get_expanded_prompt_ids(self):
+        def recurse(item):
+            ids = []
+            if item.isExpanded():
+                prompt = item.data(0, Qt.UserRole)
+                if prompt:
+                    ids.append(prompt.get('id'))
+            for i in range(item.childCount()):
+                ids.extend(recurse(item.child(i)))
+            return ids
+        ids = recurse(self.tree.invisibleRootItem())
+        return ids
+
+    def update_reference_from_table(self, item, column):
         selected_items = self.table.selectedItems()
         if not selected_items:
             return
@@ -87,6 +117,20 @@ class PromptCollection(QWidget):
             "content": content,
             "source": source
         }
+        self.controller.set_current_reference(reference_data)
+
+    def update_reference_from_tree(self, item, column):
+        prompt = item.data(0, Qt.UserRole)
+        if not prompt:
+            return
+        
+        reference_data = {
+            "id": prompt.get("id"),
+            "local_id": prompt.get("local_id"),
+            "content": prompt.get("content"),
+            "source": prompt.get("source")
+        }
+
         self.controller.set_current_reference(reference_data)
 
     @property
@@ -108,10 +152,18 @@ class PromptItemWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         if relation_name != "UNKNOWN":
-            label = QLabel(f"[{relation_name}]")
-            label.setStyleSheet("background-color: #404040; color: white; font-weight: bold; padding: 1px 4px;")
-            label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
-            label.adjustSize()
+            label = QLabel(f"{relation_name}")
+            label.setStyleSheet("""
+                background-color: #404040; 
+                color: white; 
+                font-weight: bold; 
+                font-size: 8px;
+                margin-top: 2px; 
+                padding: 1px 4px;
+            """)
+
+            label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+            label.setFixedWidth(label.sizeHint().width())
             layout.addWidget(label)
 
         content_label = QLabel(content)
