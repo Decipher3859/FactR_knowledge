@@ -200,7 +200,6 @@ class SourceSidebar(QWidget):
             from patterns import extract_source_id
             source_id = extract_source_id(file_name)
             self.source_analyzer.current_source_id = int(source_id)
-            print("Aktive Quelle: ", self.source_analyzer.current_source_id)
 
             self.source_analyzer.update_markers()
 

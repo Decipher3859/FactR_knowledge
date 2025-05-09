@@ -48,7 +48,6 @@ class MainWindow(QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             project_name = dialog.get_project_name()
             self.controller.initialize_project(project_name)
-            print("Project Name: ", project_name)
             self.setWindowTitle(project_name)
 
     def open_project_dialog(self):

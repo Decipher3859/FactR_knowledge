@@ -62,7 +62,6 @@ class Controller(QObject):
     def load_last_project(self):
         if self.project_manager.load_last_project():
             self.db_manager = self.get_db_manager()
-            print(f"Projekt {self.project_manager.get_project().project_name} wurde geladen.")
             return True
         else:
             print("Kein letztes Projekt gefunden.")
@@ -85,9 +84,7 @@ class Controller(QObject):
 
 # Modulverwaltung
     def create_prompt(self, content, source_id, relation_type_id=None):
-        print("Source ID: ", source_id)
         prompt_id = self.db_manager.create_prompt(content, source_id)
-        print("Prompt_ID in Controller: ", prompt_id)
         reference = self.get_current_reference()
         if reference and relation_type_id is not None:
             self.db_manager.add_prompt_relation(
@@ -110,10 +107,8 @@ class Controller(QObject):
     def set_current_reference(self, prompt_data):
         self.current_reference = prompt_data
         self.reference_changes.emit(prompt_data)
-        print("set_current_reference: ", prompt_data)
 
     def get_current_reference(self):
-        print("get_current_reference: ", self.current_reference)
         return self.current_reference
 
 

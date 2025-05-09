@@ -1,5 +1,5 @@
 
-- [ ] Die openInstance Struktur beim initialisieren eines Projekts ist noch nicht auf ganz flach umgestellt.
+- [x] Die openInstance Struktur beim initialisieren eines Projekts ist noch nicht auf ganz flach umgestellt.
 
 ### controller.py
 - [ ] statt ```set_module_manager``` vielleicht alle Hauptklassen Singleton gestalten?

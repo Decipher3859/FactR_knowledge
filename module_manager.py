@@ -1,6 +1,7 @@
 from modules.source_analyzer import SourceAnalyzer
 from modules.prompt_collection import PromptCollection
 from modules.prompt_creator import PromptCreator
+from modules.visualizer import Visualizer
 
 class ModuleManager:
     def __init__(self, controller):
@@ -10,6 +11,7 @@ class ModuleManager:
             "SourceAnalyzer": SourceAnalyzer,
             "PromptCollection": PromptCollection,
             "PromptCreator": PromptCreator,
+            "Visualizer": Visualizer
         }
         self.instances = {}
 

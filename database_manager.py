@@ -29,7 +29,6 @@ class DatabaseManager(QObject):
             connection.close()
 
     def connect(self, include_database=True):
-        print("connect() wird aufgerufen.")
         try:
             config = {
                 "host": self.host,
@@ -85,6 +84,7 @@ class DatabaseManager(QObject):
                 relation_type_id INT NOT NULL,
                 FOREIGN KEY (parent_id) REFERENCES prompts(id),
                 FOREIGN KEY (child_id) REFERENCES prompts(id),
+                FOREIGN KEY (relation_type_id) REFERENCES relation_types(id),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -162,7 +162,7 @@ class DatabaseManager(QObject):
             return []
 
     def create_prompt(self, content, source_id):
-        print("CREATE_PROMPT IN DB MANAGER")
+
         try:
             connection = self.connect()
             cursor = connection.cursor()
@@ -175,7 +175,6 @@ class DatabaseManager(QObject):
             ''', (content, source_id, local_id))
 
             prompt_id = cursor.lastrowid
-            print("LASTROWID: ", prompt_id)
             connection.commit()
 
             cursor.close()
@@ -245,6 +244,27 @@ class DatabaseManager(QObject):
         connection.close()
 
         return relations
+    
+    def get_all_prompts_relations(self):
+        connection = self.connect()
+        cursor = connection.cursor()
+
+        query = '''
+            SELECT
+                parent_id,
+                child_id,
+                relation_types.name AS relation_name
+            FROM prompts_relations
+            JOIN relation_types ON prompts_relations.relation_type_id = relation_types.id
+        '''
+        cursor.execute(query)
+        results = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+
+        return results
+
 
     def get_all_prompts(self):
         connection = self.connect()
@@ -316,7 +336,6 @@ class DatabaseManager(QObject):
 
         cursor.close()
         connection.close()
-        print("Query: ", results)
         return results
     
     def get_prompt_by_id(self, prompt_id):

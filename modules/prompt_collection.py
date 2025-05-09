@@ -41,7 +41,6 @@ class PromptCollection(QWidget):
 
     def refresh_prompt_tree(self):
         expanded_ids = self.get_expanded_prompt_ids()
-        print("EXPANDED IDS: ", expanded_ids)
 
         self.tree.clear()
         root_prompts = self.db.get_root_prompts()
