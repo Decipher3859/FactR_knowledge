@@ -1,6 +1,7 @@
-from PyQt5.QtCore import QUrl
+from PyQt5.QtCore import QUrl, QObject, pyqtSlot, pyqtSignal
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSizePolicy
 from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtWebChannel import QWebChannel
 from pyvis.network import Network
 from jinja2 import Environment, FileSystemLoader
 import os
@@ -20,7 +21,11 @@ class Visualizer(QWidget):
         self.db = controller.db_manager
 
         self.setup_ui()
+
         self.render_graph()
+        self.controller.prompt_added.connect(self.render_graph)
+
+        self.setup_web_channel()
 
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
@@ -28,8 +33,6 @@ class Visualizer(QWidget):
         self.web_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.layout.addWidget(self.web_view)
         self.setLayout(self.layout)
-        self.render_graph()
-        self.controller.prompt_added.connect(self.render_graph)
 
     def render_graph(self):
         env = Environment(loader=FileSystemLoader("/home/damn/apprehendData/01_Projekte/FactR/gui/templates"))
@@ -74,8 +77,14 @@ class Visualizer(QWidget):
 
         net.write_html(temp_file.name, notebook=False)
         temp_file.seek(0)
-
+        
         self.web_view.load(QUrl.fromLocalFile(temp_file.name))
+    
+    def setup_web_channel(self):
+        self.channel = QWebChannel()
+        self.bridge = JSBridge(self.controller)
+        self.channel.registerObject('bridge', self.bridge)
+        self.web_view.page().setWebChannel(self.channel)
 
     @property
     def name(self):
@@ -88,3 +97,20 @@ class Visualizer(QWidget):
             "position": self.position,
             "icon_path": self.icon_path
         }
+
+
+class JSBridge(QObject):
+    def __init__(self, controller):
+        super().__init__()
+        self.controller = controller
+
+    @pyqtSlot(str, str, str, str)
+    def set_reference(self, id_, local_id, content, source):
+        reference_data = {
+            "id": id_,
+            "local_id": local_id,
+            "content": content,
+            "source": source
+        }
+        self.controller.set_current_reference(reference_data)
+
