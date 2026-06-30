@@ -1,10 +1,10 @@
-# ResearchAnalyzer
+# FactR knowledge
 
 > **Status:** Dieses Projekt wird derzeit nicht aktiv weiterentwickelt.
 
-ResearchAnalyzer ist ein Desktop-Werkzeug zur strukturierten Analyse komplexer Rechercheprozesse. Es entstand aus dem Wunsch heraus, Informationen aus unterschiedlichen Quellen nicht nur zu sammeln, sondern deren Zusammenhänge, Herkunft und Argumentationsketten nachvollziehbar darzustellen.
+FactR knowledge ist ein Desktop-Werkzeug zur strukturierten Analyse komplexer Rechercheprozesse. Es entstand aus dem Wunsch heraus, Informationen aus unterschiedlichen Quellen nicht nur zu sammeln, sondern deren Zusammenhänge, Herkunft und Argumentationsketten nachvollziehbar darzustellen.
 
-Mit dem zunehmenden Einsatz künstlicher Intelligenz wurde es immer schwieriger, den Überblick über Quellen, Aussagen und deren Vertrauenswürdigkeit zu behalten. ResearchAnalyzer verfolgt deshalb einen anderen Ansatz als klassische Notizprogramme: Informationen sollen analysiert, miteinander verknüpft und visuell nachvollziehbar gemacht werden.
+Mit dem zunehmenden Einsatz künstlicher Intelligenz wurde es immer schwieriger, den Überblick über Quellen, Aussagen und deren Vertrauenswürdigkeit zu behalten. Dieses Projekt verfolgt deshalb einen anderen Ansatz als klassische Notizprogramme: Informationen sollen analysiert, miteinander verknüpft und visuell nachvollziehbar gemacht werden.
 
 ## Motivation
 
@@ -16,7 +16,7 @@ Bei umfangreichen Recherchen entstehen häufig Probleme wie:
 * Eigene Gedanken vermischen sich mit fremden Aussagen.
 * Ursache-Wirkungs-Beziehungen werden unübersichtlich.
 
-ResearchAnalyzer soll dabei helfen, diese Informationen systematisch zu strukturieren und transparent zu dokumentieren.
+FActR knowledge soll dabei helfen, diese Informationen systematisch zu strukturieren und transparent zu dokumentieren.
 
 ## Projektziele
 
@@ -58,34 +58,15 @@ ResearchAnalyzer soll dabei helfen, diese Informationen systematisch zu struktur
 
 ## Architektur
 
-Der ResearchAnalyzer wurde modular aufgebaut.
+FactR knowledge wurde modular aufgebaut.
 
-Beispielhafte Komponenten:
-
-* Controller
-* Projektverwaltung
-* Datenbankverwaltung
+* Wissensverwaltung
 * Modulverwaltung
-* GUI
 * SourceAnalyzer
 * PromptCreator
 * PromptCollection
 
 Neue Module sollen sich unabhängig voneinander entwickeln und später leicht ergänzen lassen.
-
-## Warum dieses Projekt?
-
-Viele Werkzeuge speichern Informationen.
-
-ResearchAnalyzer soll dagegen beantworten können:
-
-* Woher stammt diese Aussage?
-* Welche Quellen stützen sie?
-* Welche Quellen widersprechen ihr?
-* Welche Schlussfolgerung wurde daraus gezogen?
-* Wie entstand diese Erkenntnis?
-
-Dadurch entsteht kein gewöhnliches Notizsystem, sondern ein nachvollziehbarer Analyseprozess.
 
 ## Technologien
 
@@ -100,7 +81,7 @@ Geplant bzw. verwendet wurden unter anderem:
 
 Die Entwicklung ist aktuell pausiert.
 
-Trotzdem bildet der ResearchAnalyzer eine wichtige Grundlage für spätere Projekte im Bereich Wissensmanagement, Recherche und KI-gestützte Informationsanalyse.
+Durch die intensive beschäftigung bilden KernIdeen von FactR knowledge heute eine wichtige Grundlage für mein Wissensmanagement und Recherche.
 
 ## Lizenz
 
